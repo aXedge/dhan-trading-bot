@@ -70,7 +70,7 @@ technical:
 execution:
   # Position sizing
   max_positions: 8           # Max concurrent positions
-  capital_per_stock: 62500   # ₹ per position (₹5L / 8 = ₹62,500)
+  capital_per_stock: 25000   # ₹ per position (₹3L capital / 8 positions)
 
   # Order settings
   product_type: "CNC"        # CNC for delivery (swing/positional)
