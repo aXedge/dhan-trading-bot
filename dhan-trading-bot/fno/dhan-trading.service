@@ -1,0 +1,18 @@
+[Unit]
+Description=Dhan F&O Adaptive P&L Guard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aksmal01
+WorkingDirectory=/home/aksmal01/dhan-trading-bot
+EnvironmentFile=/home/aksmal01/dhan-trading-bot/.env
+ExecStart=/home/aksmal01/dhan-trading-bot/fno/dhan_daily_runner.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/aksmal01/dhan-trading-bot/fno/logs/service.log
+StandardError=append:/home/aksmal01/dhan-trading-bot/fno/logs/service.log
+
+[Install]
+WantedBy=multi-user.target

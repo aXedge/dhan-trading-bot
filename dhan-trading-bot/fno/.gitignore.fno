@@ -1,0 +1,31 @@
+# Credentials — NEVER commit these
+.env
+*.token
+*.key
+
+# Dhan state and trade data (contains personal trading data)
+fno/fno_trades.csv
+fno/fno_pnl_report.csv
+fno/.dhan_adaptive_guard_state.json
+fno/logs/
+*.state.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
