@@ -1,5 +1,5 @@
 """
-Dhan authentication — daily token generation via OAuth + TOTP.
+Dhan authentication — daily token generation via PIN + TOTP.
 """
 
 import os
@@ -12,12 +12,11 @@ logger = setup_logger(__name__, "auth.log")
 # Cache the token in memory for the session
 _access_token = None
 
-
 def get_access_token() -> str:
     """
     Generate or return cached Dhan access token.
 
-    Uses DhanLogin (OAuth flow with TOTP) to generate a token valid for 24 hours.
+    Uses DhanLogin PIN/TOTP flow to generate a token valid until ~midnight IST.
     Caches the token in memory — subsequent calls reuse it.
 
     Returns:
@@ -32,33 +31,30 @@ def get_access_token() -> str:
         return _access_token
 
     client_id = os.getenv("DHAN_CLIENT_ID")
-    api_key = os.getenv("DHAN_API_KEY")
-    api_secret = os.getenv("DHAN_API_SECRET")
+    pin = os.getenv("DHAN_PIN")
     totp_secret = os.getenv("DHAN_TOTP_SECRET")
-    redirect_url = os.getenv("DHAN_REDIRECT_URL", "http://127.0.0.1:5000/dhan/callback")
 
-    if not all([client_id, api_key, api_secret, totp_secret]):
+    if not all([client_id, pin, totp_secret]):
         raise RuntimeError(
             "Missing Dhan credentials. Check .env file for: "
-            "DHAN_CLIENT_ID, DHAN_API_KEY, DHAN_API_SECRET, DHAN_TOTP_SECRET"
+            "DHAN_CLIENT_ID, DHAN_PIN, DHAN_TOTP_SECRET"
         )
 
     try:
-        logger.info("Generating Dhan access token via OAuth + TOTP...")
+        logger.info("Generating Dhan access token via PIN + TOTP...")
 
-        def totp_generator():
-            return pyotp.TOTP(totp_secret).now()
+        totp = pyotp.TOTP(totp_secret).now()
 
-        login = DhanLogin(
-            client_id=client_id,
-            api_key=api_key,
-            api_secret=api_secret,
-            redirect_url=redirect_url,
-            totp_generator=totp_generator,
-        )
-        _access_token = login.generate_access_token()
+        login = DhanLogin(client_id)
+        result = login.generate_token(pin, totp)
 
-        logger.info("Access token generated successfully (valid 24 hours)")
+        _access_token = result.get("accessToken")
+
+        if not _access_token:
+            raise RuntimeError(f"No accessToken in response: {result}")
+
+        expiry = result.get("expiryTime", "unknown")
+        logger.info(f"Access token generated successfully (expires: {expiry})")
         return _access_token
 
     except Exception as e:
