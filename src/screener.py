@@ -1,6 +1,7 @@
 """
 Layer 1: Fundamental Screener
 ==============================
+
 Scans the Nifty Midcap 150 + Nifty 100 universe and scores each stock on
 Piotroski F-score, ROCE, debt/equity, promoter holding, and pledging.
 
@@ -16,7 +17,7 @@ from utils import load_config, save_json, load_json, setup_logger, now_iso
 logger = setup_logger(__name__, "screener.log")
 
 
-def compute_piotroski_fscore(pl: list, bs: list, cf: list) -> int:
+def compute_piotroski_fscore(pl: list, bs: list, cf: list, ratios: dict) -> int:
     """
     Compute Piotroski F-score (0-9) from financial statements.
 
@@ -27,6 +28,7 @@ def compute_piotroski_fscore(pl: list, bs: list, cf: list) -> int:
         pl: Profit & Loss rows (list of dicts)
         bs: Balance Sheet rows
         cf: Cash Flow rows
+        ratios: Ratios dict from openscreener (contains roce_percent)
 
     Returns:
         F-score integer (0-9)
@@ -35,72 +37,149 @@ def compute_piotroski_fscore(pl: list, bs: list, cf: list) -> int:
         return 0
 
     score = 0
+    reasons = []
+
+    # Helper: safely get a numeric field from a dict
+    def num(d, key, default=0):
+        v = d.get(key, default)
+        try:
+            return float(v) if v is not None else float(default)
+        except (TypeError, ValueError):
+            return float(default)
 
     # --- Profitability (4 points) ---
+
     # 1. Positive net income
-    if float(pl[-1].get("Profit after tax", 0) or pl[-1].get("Net Profit", 0)) > 0:
+    net_income = num(pl[-1], "net_profit")
+    if net_income > 0:
         score += 1
+        reasons.append("1.NetIncome+")
+    else:
+        reasons.append("1.NetIncome-")
 
     # 2. Positive operating cash flow (CFO)
-    cfo = float(cf[-1].get("Cash from Operating Activity", 0) or cf[-1].get("Operating Cash Flow", 0))
+    cfo = num(cf[-1], "operating_cash_flow")
     if cfo > 0:
         score += 1
+        reasons.append("2.CFO+")
+    else:
+        reasons.append("2.CFO-")
 
     # 3. CFO > Net Income (earnings quality)
-    net_income = float(pl[-1].get("Profit after tax", 0) or pl[-1].get("Net Profit", 0))
     if cfo > net_income:
         score += 1
+        reasons.append("3.CFO>NI")
+    else:
+        reasons.append("3.CFO<NI")
 
     # 4. ROCE improving (current vs previous year)
-    curr_roce = float(pl[-1].get("ROCE", 0) or 0)
-    prev_roce = float(pl[-2].get("ROCE", 0) or 0)
+    curr_roce = num(ratios, "roce_percent")
+    # For previous year ROCE, use the ratios from the P&L if available,
+    # otherwise compute a rough proxy: operating_profit / (equity_capital + reserves + borrowings)
+    prev_roce = _compute_roce(
+        num(pl[-2], "operating_profit"),
+        num(bs[-2], "equity_capital") + num(bs[-2], "reserves") + num(bs[-2], "borrowings"),
+    )
     if curr_roce > prev_roce:
         score += 1
+        reasons.append(f"4.ROCE↑({curr_roce:.1f}>{prev_roce:.1f})")
+    else:
+        reasons.append(f"4.ROCE↓({curr_roce:.1f}<{prev_roce:.1f})")
 
     # --- Leverage, Liquidity, Source of Funds (3 points) ---
+
     # 5. Lower leverage (debt/equity decreasing)
     curr_de = _safe_div(
-        float(bs[-1].get("Borrowings", 0) or 0),
-        float(bs[-1].get("Total Equity", 0) or bs[-1].get("Shareholders Equity", 0) or 1),
+        num(bs[-1], "borrowings"),
+        num(bs[-1], "equity_capital") + num(bs[-1], "reserves"),
     )
     prev_de = _safe_div(
-        float(bs[-2].get("Borrowings", 0) or 0),
-        float(bs[-2].get("Total Equity", 0) or bs[-2].get("Shareholders Equity", 0) or 1),
+        num(bs[-2], "borrowings"),
+        num(bs[-2], "equity_capital") + num(bs[-2], "reserves"),
     )
     if curr_de < prev_de:
         score += 1
+        reasons.append(f"5.D/E↓({curr_de:.2f}<{prev_de:.2f})")
+    else:
+        reasons.append(f"5.D/E↑({curr_de:.2f}>{prev_de:.2f})")
 
     # 6. Current ratio > 1 (liquidity)
-    curr_assets = float(bs[-1].get("Current Assets", 0) or bs[-1].get("Other Current Assets", 0) or 0)
-    curr_liab = float(bs[-1].get("Current Liabilities", 0) or bs[-1].get("Other Current Liabilities", 0) or 0)
-    if curr_assets > curr_liab:
+    # openscreener doesn't provide current assets/liabilities separately.
+    # Substitute: positive free cash flow as a liquidity proxy
+    fcf = num(cf[-1], "free_cash_flow")
+    if fcf > 0:
         score += 1
+        reasons.append("6.FCF+")
+    else:
+        reasons.append("6.FCF-")
 
-    # 7. No share dilution (shares outstanding same or lower)
-    curr_shares = float(bs[-1].get("Shares Outstanding", 0) or bs[-1].get("Number of Shares", 0) or 0)
-    prev_shares = float(bs[-2].get("Shares Outstanding", 0) or bs[-2].get("Number of Shares", 0) or 0)
-    if curr_shares <= prev_shares:
+    # 7. No share dilution (equity capital same or lower)
+    curr_equity_cap = num(bs[-1], "equity_capital")
+    prev_equity_cap = num(bs[-2], "equity_capital")
+    if curr_equity_cap <= prev_equity_cap:
         score += 1
+        reasons.append("7.NoDilution")
+    else:
+        reasons.append("7.Diluted")
 
     # --- Operating Efficiency (2 points) ---
+
     # 8. Operating margin (OPM) expanding
-    curr_opm = float(pl[-1].get("OPM", 0) or pl[-1].get("Operating Profit Margin", 0) or 0)
-    prev_opm = float(pl[-2].get("OPM", 0) or pl[-2].get("Operating Profit Margin", 0) or 0)
+    curr_opm = num(pl[-1], "operating_margin_percent")
+    prev_opm = num(pl[-2], "operating_margin_percent")
     if curr_opm > prev_opm:
         score += 1
+        reasons.append(f"8.OPM↑({curr_opm:.1f}>{prev_opm:.1f})")
+    else:
+        reasons.append(f"8.OPM↓({curr_opm:.1f}<{prev_opm:.1f})")
 
-    # 9. Higher revenue (asset turnover improving)
-    curr_sales = float(pl[-1].get("Sales", 0) or pl[-1].get("Revenue", 0) or 0)
-    prev_sales = float(pl[-2].get("Sales", 0) or pl[-2].get("Revenue", 0) or 0)
+    # 9. Higher revenue (sales growth)
+    curr_sales = num(pl[-1], "sales")
+    prev_sales = num(pl[-2], "sales")
     if curr_sales > prev_sales:
         score += 1
+        reasons.append("9.Sales↑")
+    else:
+        reasons.append("9.Sales↓")
 
+    logger.info(f"    Piotroski F-score: {score}/9 [{', '.join(reasons)}]")
     return min(score, 9)
+
+
+def _compute_roce(operating_profit: float, total_capital: float) -> float:
+    """Compute ROCE = Operating Profit / (Equity + Borrowings)."""
+    if total_capital <= 0:
+        return 0.0
+    return (operating_profit / total_capital) * 100
 
 
 def _safe_div(numerator: float, denominator: float) -> float:
     """Safe division — returns 0 if denominator is 0."""
     return numerator / denominator if denominator else 0.0
+
+
+def compute_revenue_cagr(pl: list, years: int) -> float:
+    """Compute compounded annual growth rate of revenue over N years."""
+    if len(pl) < years + 1:
+        return 0.0
+
+    latest_sales = _num(pl[-1], "sales")
+    past_sales = _num(pl[-(years + 1)], "sales")
+
+    if past_sales <= 0:
+        return 0.0
+
+    cagr = ((latest_sales / past_sales) ** (1 / years) - 1) * 100
+    return max(cagr, 0.0)
+
+
+def _num(d: dict, key: str, default=0) -> float:
+    """Safely extract a numeric value from a dict."""
+    v = d.get(key, default)
+    try:
+        return float(v) if v is not None else float(default)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 def score_stock(symbol: str, config: dict) -> dict | None:
@@ -118,6 +197,7 @@ def score_stock(symbol: str, config: dict) -> dict | None:
     """
     try:
         from openscreener import Stock
+
         stock = Stock(symbol, consolidated=True)
         summary = stock.summary()
         ratios = stock.ratios()
@@ -130,40 +210,57 @@ def score_stock(symbol: str, config: dict) -> dict | None:
             logger.debug(f"{symbol}: insufficient financial data, skipping")
             return None
 
+        logger.info(f"  {symbol} ({summary.get('company_name', '?')[:40]}):")
+
+        # --- Print raw metrics for transparency ---
+        net_income = _num(pl[-1], "net_profit")
+        cfo = _num(cf[-1], "operating_cash_flow")
+        fcf = _num(cf[-1], "free_cash_flow")
+        sales = _num(pl[-1], "sales")
+        opm = _num(pl[-1], "operating_margin_percent")
+        borrowings = _num(bs[-1], "borrowings")
+        equity = _num(bs[-1], "equity_capital") + _num(bs[-1], "reserves")
+
+        logger.info(f"    Net Profit: ₹{net_income:,.0f} | CFO: ₹{cfo:,.0f} | FCF: ₹{fcf:,.0f}")
+        logger.info(f"    Sales: ₹{sales:,.0f} | OPM: {opm:.1f}%")
+        logger.info(f"    Borrowings: ₹{borrowings:,.0f} | Equity: ₹{equity:,.0f}")
+
         # --- Piotroski F-score ---
-        f_score = compute_piotroski_fscore(pl, bs, cf)
+        f_score = compute_piotroski_fscore(pl, bs, cf, ratios)
+
         if f_score < config["min_f_score"]:
-            logger.debug(f"{symbol}: F-score {f_score} < {config['min_f_score']}, skipping")
+            logger.info(f"    ✗ FILTERED: F-score {f_score} < {config['min_f_score']}")
             return None
 
         # --- Quality metrics ---
-        roce = float(ratios.get("roce_percent", 0) or 0)
+        roce = _num(ratios, "roce_percent")
+        logger.info(f"    ROCE: {roce:.1f}% (min: {config['min_roce']}%)")
         if roce < config["min_roce"]:
-            logger.debug(f"{symbol}: ROCE {roce:.1f}% < {config['min_roce']}%, skipping")
+            logger.info(f"    ✗ FILTERED: ROCE {roce:.1f}% < {config['min_roce']}%")
             return None
 
-        debt_eq = _safe_div(
-            float(bs[-1].get("Borrowings", 0) or 0),
-            float(bs[-1].get("Total Equity", 0) or bs[-1].get("Shareholders Equity", 0) or 1),
-        )
+        debt_eq = _safe_div(borrowings, equity)
+        logger.info(f"    Debt/Equity: {debt_eq:.2f} (max: {config['max_debt_equity']})")
         if debt_eq > config["max_debt_equity"]:
-            logger.debug(f"{symbol}: D/E {debt_eq:.2f} > {config['max_debt_equity']}, skipping")
+            logger.info(f"    ✗ FILTERED: D/E {debt_eq:.2f} > {config['max_debt_equity']}")
             return None
 
         # --- Management quality ---
         latest_sh = sh[-1] if sh else {}
-        promoter = float(latest_sh.get("Promoters", 0) or 0)
+        promoter = _num(latest_sh, "promoters")
+        logger.info(f"    Promoter: {promoter:.1f}% (min: {config['min_promoter_holding']}%)")
         if promoter < config["min_promoter_holding"]:
-            logger.debug(f"{symbol}: Promoter {promoter:.1f}% < {config['min_promoter_holding']}%, skipping")
+            logger.info(f"    ✗ FILTERED: Promoter {promoter:.1f}% < {config['min_promoter_holding']}%")
             return None
 
-        pledged = float(latest_sh.get("Pledged", 0) or 0)
-        if pledged > config["max_pledged"]:
-            logger.debug(f"{symbol}: Pledged {pledged:.1f}% > {config['max_pledged']}%, skipping")
-            return None
+        # Pledged % — openscreener doesn't provide this directly
+        # Set to 0 (best case) if not available
+        pledged = 0.0
+        logger.info(f"    Pledged: {pledged:.1f}% (assumed 0 — not available via openscreener)")
 
         # --- Revenue growth (3Y CAGR) ---
-        revenue_growth = _compute_revenue_cagr(pl, 3)
+        revenue_growth = compute_revenue_cagr(pl, 3)
+        logger.info(f"    Revenue CAGR (3Y): {revenue_growth:.1f}%")
 
         # --- Composite score (0-100) ---
         w = config["weights"]
@@ -176,7 +273,9 @@ def score_stock(symbol: str, config: dict) -> dict | None:
             + max(1 - pledged / 10, 0) * w["pledge"]
         )
 
-        return {
+        market_cap = _num(summary.get("ratios", {}), "market_cap") if isinstance(summary.get("ratios"), dict) else 0
+
+        result = {
             "symbol": symbol,
             "name": summary.get("company_name", symbol),
             "f_score": f_score,
@@ -185,29 +284,22 @@ def score_stock(symbol: str, config: dict) -> dict | None:
             "revenue_growth_3y": round(revenue_growth, 2),
             "promoter_holding": round(promoter, 2),
             "pledged_pct": round(pledged, 2),
-            "market_cap": summary.get("ratios", {}).get("market_cap"),
+            "market_cap": market_cap,
+            "net_profit": round(net_income, 2),
+            "operating_cash_flow": round(cfo, 2),
+            "free_cash_flow": round(fcf, 2),
+            "sales": round(sales, 2),
+            "opm": round(opm, 2),
             "composite_score": round(composite, 2),
             "screened_at": now_iso(),
         }
 
+        logger.info(f"    ✓ PASSED — Composite Score: {composite:.2f}")
+        return result
+
     except Exception as e:
         logger.warning(f"{symbol}: error during screening: {e}")
         return None
-
-
-def _compute_revenue_cagr(pl: list, years: int) -> float:
-    """Compute compounded annual growth rate of revenue over N years."""
-    if len(pl) < years + 1:
-        return 0.0
-
-    latest_sales = float(pl[-1].get("Sales", 0) or pl[-1].get("Revenue", 0) or 0)
-    past_sales = float(pl[-(years + 1)].get("Sales", 0) or pl[-(years + 1)].get("Revenue", 0) or 0)
-
-    if past_sales <= 0:
-        return 0.0
-
-    cagr = ((latest_sales / past_sales) ** (1 / years) - 1) * 100
-    return max(cagr, 0.0)
 
 
 def fetch_universe(indices: list[str]) -> list[str]:
@@ -224,11 +316,15 @@ def fetch_universe(indices: list[str]) -> list[str]:
     for idx_symbol in indices:
         try:
             from openscreener import Index
+
             index = Index(idx_symbol)
-            constituents = index.constituents()
-            symbols = [c.get("symbol", c.get("name", "")) for c in constituents]
+            result = index.constituents()
+            companies = result.get("companies", [])
+            symbols = [c.get("symbol", "") for c in companies]
             all_symbols.extend(symbols)
-            logger.info(f"Fetched {len(symbols)} constituents from {idx_symbol}")
+            total_pages = int(result.get("total_pages", 1))
+            current_page = int(result.get("page", 1))
+            logger.info(f"Fetched {len(symbols)} constituents from {idx_symbol} (page {current_page}/{total_pages})")
         except Exception as e:
             logger.error(f"Failed to fetch index {idx_symbol}: {e}")
 
@@ -255,6 +351,8 @@ def run():
     logger.info("Layer 1: Fundamental Screener — starting")
     logger.info(f"Universe: {config['universe_indices']}")
     logger.info(f"Basket size: {config['basket_size']}")
+    logger.info(f"Filters: F-score>={config['min_f_score']}, ROCE>={config['min_roce']}%, "
+                f"D/E<={config['max_debt_equity']}, Promoter>={config['min_promoter_holding']}%")
     logger.info("=" * 60)
 
     # Fetch universe
@@ -263,15 +361,20 @@ def run():
 
     # Score each stock
     results = []
+    passed = 0
+    failed = 0
     for i, sym in enumerate(symbols, 1):
         logger.info(f"[{i}/{len(symbols)}] Screening {sym}...")
         score = score_stock(sym, config)
         if score:
             results.append(score)
+            passed += 1
             logger.info(
                 f"  ✓ {sym}: F:{score['f_score']} ROCE:{score['roce']}% "
                 f"Score:{score['composite_score']}"
             )
+        else:
+            failed += 1
         time.sleep(config["request_delay"])
 
     # Sort by composite score, take top N
@@ -281,11 +384,13 @@ def run():
     # Save
     save_json(basket, "basket.json")
     logger.info("=" * 60)
-    logger.info(f"Screening complete. Basket: {len(basket)} stocks saved to data/basket.json")
+    logger.info(f"Screening complete. {passed} passed filters, {failed} filtered out.")
+    logger.info(f"Basket: {len(basket)} stocks saved to data/basket.json")
     for s in basket:
         logger.info(
             f"  {s['symbol']:15s} F:{s['f_score']} ROCE:{s['roce']:5.1f}% "
-            f"D/E:{s['debt_equity']:.2f} Score:{s['composite_score']}"
+            f"D/E:{s['debt_equity']:.2f} CAGR:{s['revenue_growth_3y']:.1f}% "
+            f"Prom:{s['promoter_holding']:.1f}% Score:{s['composite_score']}"
         )
     logger.info("=" * 60)
 
