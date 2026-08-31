@@ -1,0 +1,103 @@
+# ============================================================
+# Swing & Positional Trading Bot — Configuration
+# ============================================================
+# All thresholds, parameters, and tunables live here.
+# Edit this file — don't edit the Python source to change values.
+
+# ----------------------------------------------------------
+# Layer 1: Fundamental Screener
+# ----------------------------------------------------------
+fundamental:
+  # Stock universe — NSE index symbols for openscreener
+  universe_indices:
+    - "CNXMIDCAP"    # Nifty Midcap 150
+    - "CNX100"       # Nifty 100 (large caps)
+
+  # Hard filters — stocks failing ANY of these are excluded
+  min_f_score: 7          # Piotroski F-score (0-9). 7+ = strong
+  min_roce: 18.0          # Return on Capital Employed (%)
+  max_debt_equity: 0.5    # Lower is safer
+  min_promoter_holding: 50.0   # % — skin in the game
+  max_pledged: 5.0        # % of promoter shares pledged. 0 is ideal
+
+  # Scoring weights (should sum to 100)
+  weights:
+    piotroski: 25
+    roce: 20
+    debt_equity: 15
+    revenue_growth: 20
+    promoter_holding: 10
+    pledge: 10
+
+  # Output
+  basket_size: 15         # Number of stocks in final basket
+  output_file: "data/basket.json"
+
+  # Rate limiting (seconds between Screener.in requests)
+  request_delay: 2
+
+# ----------------------------------------------------------
+# Layer 2: Technical Signal Generator
+# ----------------------------------------------------------
+technical:
+  # Swing strategy (2-10 day holds)
+  swing:
+    lookback_days: 20         # Days for breakout high
+    volume_multiplier: 1.5    # Volume must be 1.5x average
+    rsi_min: 40               # Not oversold
+    rsi_max: 65               # Not overbought
+    stop_loss_pct: 0.02       # 2% stop loss
+    target_pct: 0.06          # 6% target (3:1 R:R)
+
+  # Positional strategy (3-12 week holds)
+  positional:
+    ema_fast: 50
+    ema_slow: 200
+    stop_loss_pct: 0.05       # 5% stop loss
+    target_pct: 0.15          # 15% target (3:1 R:R)
+
+  # Common
+  rsi_period: 14
+  volume_avg_period: 20
+  price_history_days: 365     # How much history to fetch for indicators
+
+  # Output
+  output_file: "data/signals.json"
+
+# ----------------------------------------------------------
+# Layer 3: Dhan Execution
+# ----------------------------------------------------------
+execution:
+  # Position sizing
+  max_positions: 8           # Max concurrent positions
+  capital_per_stock: 62500   # ₹ per position (₹5L / 8 = ₹62,500)
+
+  # Order settings
+  product_type: "CNC"        # CNC for delivery (swing/positional)
+  order_type: "MARKET"       # MARKET for entries, LIMIT optional
+
+  # SL monitoring
+  sl_check_interval_sec: 300 # Check every 5 minutes
+  market_open: "09:15"
+  market_close: "15:30"
+
+  # State files
+  positions_file: "data/positions.json"
+
+# ----------------------------------------------------------
+# Scheduling (cron expressions — IST)
+# ----------------------------------------------------------
+schedule:
+  fundamental_screen: "0 10 * * 6"      # Saturday 10 AM
+  technical_scan: "45 15 * * 1-5"        # Weekdays 3:45 PM (EOD)
+  execute_signals: "15 9 * * 1-5"        # Weekdays 9:15 AM (market open)
+  sl_monitor_start: "15 9 * * 1-5"       # Weekdays 9:15 AM
+  token_refresh: "30 8 * * 1-5"          # Weekdays 8:30 AM
+
+# ----------------------------------------------------------
+# Dhan API
+# ----------------------------------------------------------
+dhan:
+  base_url: "https://api.dhan.co/v2"
+  exchange_segment: "NSE_EQ"
+  # Credentials come from .env — never hardcode here

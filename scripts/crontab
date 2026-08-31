@@ -1,0 +1,31 @@
+#!/bin/bash
+# ============================================================
+# Cron jobs for the Swing & Positional Trading Bot
+# ============================================================
+# Install: crontab -e, then paste these lines (adjust paths!)
+# Project root: /home/trader/dhan-trading-bot
+# Python: /usr/bin/python3 (or your venv)
+# ============================================================
+
+PROJECT=/home/trader/dhan-trading-bot
+PYTHON=$PROJECT/venv/bin/python
+LOG=$PROJECT/logs/cron.log
+
+# --- Daily token refresh (8:30 AM IST) ---
+30 8 * * 1-5 cd $PROJECT && $PYTHON -c "from src.auth import get_access_token; get_access_token()" >> $LOG 2>&1
+
+# --- Layer 2: Technical scan (3:45 PM IST, after market close) ---
+45 15 * * 1-5 cd $PROJECT && $PYTHON -m src.technicals >> $LOG 2>&1
+
+# --- Layer 3: Execute signals (9:15 AM IST, market open) ---
+15 9 * * 1-5 cd $PROJECT && $PYTHON -m src.executor >> $LOG 2>&1
+
+# --- Layer 3b: SL monitor (runs continuously from 9:15 AM) ---
+15 9 * * 1-5 cd $PROJECT && $PYTHON -m src.sl_monitor >> $LOG 2>&1
+
+# --- Weekly: Refresh instrument master (Sunday midnight) ---
+0 0 * * 0 cd $PROJECT && $PYTHON scripts/download_instruments.py >> $LOG 2>&1
+
+# --- NOTE: Layer 1 (fundamental screener) runs on laptop ---
+# Run manually on Saturday: python -m src.screener
+# Then push data/basket.json to the VPS via scp or git

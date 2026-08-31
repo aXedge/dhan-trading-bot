@@ -1,0 +1,27 @@
+# ============================================================
+# Dependencies for Swing & Positional Trading Bot
+# ============================================================
+# Core trading API
+dhanhq>=2.2.0
+
+# Fundamental data (Screener.in scraper)
+openscreener>=0.1.0
+
+# Price history and indicators
+yfinance>=0.2.40
+pandas>=2.0.0
+pandas-ta>=0.3.14b
+
+# Config and env
+PyYAML>=6.0
+python-dotenv>=1.0.0
+
+# Auth (TOTP for Dhan)
+pyotp>=2.9.0
+
+# HTTP for Telegram alerts
+requests>=2.31.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
