@@ -101,17 +101,17 @@ Always check for `errorCode` in the response dict, not `status == "success"`.
 ## Daily Operating Procedure
 
 1. **Token generation**: Automatic via `src/auth.py` (PIN + TOTP). No manual token refresh needed — the script calls `get_access_token()` at startup.
-2. **Fetch history**: Run `fno/dhan_fno_avg_pnl.py --data-file fno/fno_trades.csv` to fetch and cache trades.
-3. **Compute limits**: Run `fno/dhan_fno_adaptive_guard.py --from-file fno/fno_trades.csv --dry-run` to see recommended limits.
+2. **Fetch history**: Run `futures_and_options/dhan_fno_avg_pnl.py --data-file futures_and_options/fno_trades.csv` to fetch and cache trades.
+3. **Compute limits**: Run `futures_and_options/dhan_fno_adaptive_guard.py --from-file futures_and_options/fno_trades.csv --dry-run` to see recommended limits.
 4. **Review with user**: Present the computed limits and explain the rationale (win rate, R:R, σ values).
-5. **Start guard**: Run `fno/dhan_fno_adaptive_guard.py --from-file fno/fno_trades.csv` (or the simple guard with manual limits).
+5. **Start guard**: Run `futures_and_options/dhan_fno_adaptive_guard.py --from-file futures_and_options/fno_trades.csv` (or the simple guard with manual limits).
 6. **Monitor**: The guard polls for F&O orders and configures the P&L exit automatically.
 
 **Note on token expiry**: Dhan tokens expire around midnight IST. If a script is running across midnight and the token expires mid-session, the API calls will return auth errors (DH-901). The `src/auth.py` caches the token in memory and does not auto-refresh — you would need to restart the script to get a fresh token. For long-running guards, schedule a restart before market open.
 
 ## State Management
 
-- The adaptive guard's state file (`fno/.dhan_adaptive_guard_state.json`) contains the full history of computed statistics and limits.
+- The adaptive guard's state file (`futures_and_options/.dhan_adaptive_guard_state.json`) contains the full history of computed statistics and limits.
 - Each run appends a new entry with date, stats, and limits.
 - The state file is used to show trend arrows (↑/↓/→) comparing today's limits to previous runs.
 - If the state file is lost or corrupted, the guard will start fresh with no history — it will still compute limits from the current trade data, just without the trend comparison.

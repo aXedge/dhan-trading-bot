@@ -53,7 +53,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-# Add project root (parent of fno/) to path so we can import src.auth
+# Add project root (parent of futures_and_options/) to path so we can import src.auth
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:

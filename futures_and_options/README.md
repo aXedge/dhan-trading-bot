@@ -6,9 +6,9 @@ A set of Python scripts for managing F&O trade risk on Dhan. Fetch trade history
 
 | Script | Path | Purpose |
 |---|---|---|
-| `dhan_fno_avg_pnl.py` | `fno/` | Fetch F&O trade history, compute round-trip P&L, report averages |
-| `dhan_fno_adaptive_guard.py` | `fno/` | Self-learning system: compute EWMA-weighted limits and start the guard |
-| `dhan_fno_pnl_guard.py` | `fno/` | Lightweight polling guard: set P&L exit when an F&O order is detected |
+| `dhan_fno_avg_pnl.py` | `futures_and_options/` | Fetch F&O trade history, compute round-trip P&L, report averages |
+| `dhan_fno_adaptive_guard.py` | `futures_and_options/` | Self-learning system: compute EWMA-weighted limits and start the guard |
+| `dhan_fno_pnl_guard.py` | `futures_and_options/` | Lightweight polling guard: set P&L exit when an F&O order is detected |
 
 ## Prerequisites
 
@@ -232,16 +232,16 @@ cp .env.example .env
 pip install -r requirements.txt
 
 # 2. Fetch trade history and save for reuse
-python fno/dhan_fno_avg_pnl.py --days 90 --data-file fno/fno_trades.csv
+python futures_and_options/dhan_fno_avg_pnl.py --days 90 --data-file futures_and_options/fno_trades.csv
 
 # 3. Compute adaptive limits (reads from saved CSV, no API call)
-python fno/dhan_fno_adaptive_guard.py --from-file fno/fno_trades.csv --dry-run
+python futures_and_options/dhan_fno_adaptive_guard.py --from-file futures_and_options/fno_trades.csv --dry-run
 
 # 4. Review the output, then start the guard
-python fno/dhan_fno_adaptive_guard.py --from-file fno/fno_trades.csv
+python futures_and_options/dhan_fno_adaptive_guard.py --from-file futures_and_options/fno_trades.csv
 
 # Or use the simple guard with manually chosen limits
-python fno/dhan_fno_pnl_guard.py --profit 12000 --loss 8000
+python futures_and_options/dhan_fno_pnl_guard.py --profit 12000 --loss 8000
 ```
 
 ## File Overview
@@ -251,7 +251,7 @@ dhan-trading-bot/
 ├── src/
 │   ├── auth.py                # Dhan OAuth + TOTP token generation (shared)
 │   └── utils.py               # Config loading, logging, file I/O
-├── fno/                       # F&O P&L guard suite
+├── futures_and_options/                       # F&O P&L guard suite
 │   ├── dhan_fno_avg_pnl.py          # Trade history fetcher + analyser
 │   ├── dhan_fno_adaptive_guard.py   # Self-learning limit computer + guard
 │   ├── dhan_fno_pnl_guard.py        # Simple polling guard
