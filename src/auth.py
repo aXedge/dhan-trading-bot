@@ -93,3 +93,8 @@ def reset_token():
     """Force re-authentication on next get_access_token() call."""
     global _access_token
     _access_token = None
+
+
+if __name__ == "__main__":
+    token = get_access_token()
+    print(f"Token generated: {token[:20]}... (expires in ~24h)")
