@@ -23,6 +23,7 @@ SESSION_CONFIGS = {
     "A": "config/settings_conservative.yaml",
     "B": "config/settings_balanced.yaml",
     "C": "config/settings_aggressive.yaml",
+    "T": "config/settings_tuned.yaml",
 }
 
 
@@ -35,7 +36,7 @@ def _setup_session(session: str):
 
 # Parse --session before importing utils
 _pre_parser = argparse.ArgumentParser(add_help=False)
-_pre_parser.add_argument("--session", default="B", choices=["A", "B", "C"])
+_pre_parser.add_argument("--session", default="B", choices=["A", "B", "C", "T"])
 _pre_args, _ = _pre_parser.parse_known_args()
 _setup_session(_pre_args.session)
 
@@ -102,6 +103,12 @@ def check_swing_entry(df: pd.DataFrame, config: dict) -> bool:
 
     last = df.iloc[-1]
 
+    # Trend filter: only buy when EMA50 > EMA200 (uptrend)
+    if config.get("trend_filter", False):
+        if pd.notna(last.get("ema200")) and pd.notna(last.get("ema50")):
+            if last["ema50"] < last["ema200"]:
+                return False
+
     breakout = last["Close"] > last["high_lookback"]
     vol_confirm = last["Volume"] > last["vol_avg"] * swing["volume_multiplier"]
     not_overbought = swing["rsi_min"] < last["rsi"] < swing["rsi_max"]
@@ -163,7 +170,7 @@ def check_exit(df: pd.DataFrame, strategy: str, config: dict) -> bool:
 def run(session: str):
     """Main entry point — reads cached prices, applies session config, generates signals."""
     config = load_config()["technical"]
-    session_label = {"A": "Conservative", "B": "Balanced", "C": "Aggressive"}[session]
+    session_label = {"A": "Conservative", "B": "Balanced", "C": "Aggressive", "T": "Tuned"}[session]
 
     logger.info("=" * 60)
     logger.info(f"Layer 2: Technical Signal Generator — Session {session} ({session_label})")
@@ -286,7 +293,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--session", default="B", choices=["A", "B", "C"],
+        "--session", default="B", choices=["A", "B", "C", "T"],
         help="Trading session profile (default: B = balanced)",
     )
     args = parser.parse_args()

@@ -35,7 +35,7 @@ from utils import (
 
 logger = setup_logger(__name__, "sl_monitor.log")
 
-ALL_SESSIONS = ["A", "B", "C"]
+ALL_SESSIONS = ["A", "B", "C", "T"]
 SESSION_CONFIGS = {
     "A": "config/settings_conservative.yaml",
     "B": "config/settings_balanced.yaml",

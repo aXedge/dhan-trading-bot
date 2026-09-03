@@ -22,6 +22,7 @@ SESSION_CONFIGS = {
     "A": "config/settings_conservative.yaml",
     "B": "config/settings_balanced.yaml",
     "C": "config/settings_aggressive.yaml",
+    "T": "config/settings_tuned.yaml",
 }
 
 
@@ -34,7 +35,7 @@ def _setup_session(session: str):
 
 # Parse --session before importing utils
 _pre_parser = argparse.ArgumentParser(add_help=False)
-_pre_parser.add_argument("--session", default="B", choices=["A", "B", "C"])
+_pre_parser.add_argument("--session", default="B", choices=["A", "B", "C", "T"])
 _pre_args, _ = _pre_parser.parse_known_args()
 _setup_session(_pre_args.session)
 
@@ -202,7 +203,7 @@ def run(session: str):
     """Main entry point — reads session signals, places orders, updates positions."""
     from auth import get_dhan
 
-    session_label = {"A": "Conservative", "B": "Balanced", "C": "Aggressive"}[session]
+    session_label = {"A": "Conservative", "B": "Balanced", "C": "Aggressive", "T": "Tuned"}[session]
     config = load_config()["execution"]
 
     logger.info("=" * 60)
@@ -294,7 +295,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--session", default="B", choices=["A", "B", "C"],
+        "--session", default="B", choices=["A", "B", "C", "T"],
         help="Trading session profile (default: B = balanced)",
     )
     args = parser.parse_args()
