@@ -1,37 +1,71 @@
 """
-Layer 2: Technical Signal Generator
-====================================
-Reads the fundamental basket, fetches price history, computes technical
-indicators, and generates entry/exit signals for the next trading day.
+Layer 2: Technical Signal Generator (multi-session)
 
-Output: data/signals.json — list of BUY/SELL/UPDATE_SL actions.
+Reads cached prices.json (fetched once by price_fetcher.py), applies
+the session's config parameters, and generates entry/exit signals.
 
-Runs daily at 3:45 PM IST (after market close).
-Can run on your laptop — no Dhan API access needed.
+Usage:
+    python -m src.technicals --session A    # conservative
+    python -m src.technicals --session B    # balanced (default)
+    python -m src.technicals --session C    # aggressive
+    python -m src.technicals --help
+
+Cron runs B first, then A, then C — all serial on the same cached prices.
 """
 
+import argparse
+import os
+import sys
 import pandas as pd
+
+# Session → config file mapping
+SESSION_CONFIGS = {
+    "A": "config/settings_conservative.yaml",
+    "B": "config/settings_balanced.yaml",
+    "C": "config/settings_aggressive.yaml",
+}
+
+
+def _setup_session(session: str):
+    """Set env vars so utils.py loads the right config and data files."""
+    config_file = SESSION_CONFIGS.get(session, SESSION_CONFIGS["B"])
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.environ["CONFIG_PATH"] = os.path.join(project_root, config_file)
+
+
+# Parse --session before importing utils
+_pre_parser = argparse.ArgumentParser(add_help=False)
+_pre_parser.add_argument("--session", default="B", choices=["A", "B", "C"])
+_pre_args, _ = _pre_parser.parse_known_args()
+_setup_session(_pre_args.session)
+
 from utils import load_config, load_json, save_json, setup_logger, now_iso
 
-logger = setup_logger(__name__, "signals.log")
+logger = setup_logger(__name__, f"technicals_{_pre_args.session}.log")
+
+
+def candles_to_dataframe(candles: list) -> pd.DataFrame:
+    """Convert cached candle records back to a DataFrame."""
+    df = pd.DataFrame(candles)
+    # Map to yfinance-style column names
+    col_map = {
+        "open": "Open", "high": "High", "low": "Low",
+        "close": "Close", "volume": "Volume",
+    }
+    df = df.rename(columns=col_map)
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
 
 
 def compute_indicators(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Add technical indicators to a price DataFrame.
-
-    Adds: EMA (10, 20, 50, 200), RSI (14), volume average, 20-day high.
-
-    Args:
-        df: DataFrame with OHLCV columns (from yfinance)
-        config: The 'technical' section of settings.yaml
-
-    Returns:
-        DataFrame with indicator columns added
-    """
+    """Add technical indicators to a price DataFrame."""
     rsi_period = config["rsi_period"]
     vol_period = config["volume_avg_period"]
     swing = config["swing"]
+
+    df = df.copy()
 
     # EMAs
     df["ema10"] = df["Close"].ewm(span=10, adjust=False).mean()
@@ -41,7 +75,7 @@ def compute_indicators(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     if len(df) >= 200:
         df["ema200"] = df["Close"].ewm(span=config["positional"]["ema_slow"], adjust=False).mean()
     else:
-        df["ema200"] = df["Close"].rolling(200).mean()  # NaN if insufficient data
+        df["ema200"] = df["Close"].rolling(200).mean()
 
     # RSI
     delta = df["Close"].diff()
@@ -53,7 +87,7 @@ def compute_indicators(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     # Volume average
     df["vol_avg"] = df["Volume"].rolling(vol_period).mean()
 
-    # 20-day high (shifted — today's high doesn't count as breakout reference)
+    # N-day high (shifted — today's high doesn't count as breakout reference)
     df["high_lookback"] = df["High"].rolling(swing["lookback_days"]).max().shift(1)
     df["high_50d"] = df["High"].rolling(50).max().shift(1)
 
@@ -61,14 +95,7 @@ def compute_indicators(df: pd.DataFrame, config: dict) -> pd.DataFrame:
 
 
 def check_swing_entry(df: pd.DataFrame, config: dict) -> bool:
-    """
-    Check if swing entry conditions are met on the latest candle.
-
-    Conditions:
-        - Price breaks above N-day high
-        - Volume > 1.5x average
-        - RSI between 40 and 65 (not overbought)
-    """
+    """Check if swing entry conditions are met on the latest candle."""
     swing = config["swing"]
     if len(df) < swing["lookback_days"] + 5:
         return False
@@ -90,14 +117,7 @@ def check_swing_entry(df: pd.DataFrame, config: dict) -> bool:
 
 
 def check_positional_entry(df: pd.DataFrame, config: dict) -> bool:
-    """
-    Check if positional entry conditions are met.
-
-    Conditions:
-        - Golden cross (50 EMA crosses above 200 EMA), OR
-        - Price breaks above 50-day high on volume (trend continuation)
-        - RSI < 70 (not overbought)
-    """
+    """Check if positional entry conditions are met."""
     pos = config["positional"]
     if len(df) < 201:
         return False
@@ -119,12 +139,7 @@ def check_positional_entry(df: pd.DataFrame, config: dict) -> bool:
 
 
 def check_exit(df: pd.DataFrame, strategy: str, config: dict) -> bool:
-    """
-    Check if exit conditions are met for a held position.
-
-    Swing: Close below 10-day EMA, or RSI > 75 (overbought)
-    Positional: 50 EMA below 200 EMA (death cross), or Close below 200 EMA
-    """
+    """Check if exit conditions are met for a held position."""
     last = df.iloc[-1]
 
     if strategy == "swing":
@@ -145,69 +160,44 @@ def check_exit(df: pd.DataFrame, strategy: str, config: dict) -> bool:
     return False
 
 
-def fetch_price_history(symbol: str, days: int) -> pd.DataFrame | None:
-    """
-    Fetch daily price history from Yahoo Finance.
-
-    Args:
-        symbol: NSE ticker (e.g. "RELIANCE")
-        days: Number of days of history
-
-    Returns:
-        DataFrame with OHLCV, or None if fetch fails
-    """
-    try:
-        import yfinance as yf
-        ticker = yf.Ticker(f"{symbol}.NS")
-        df = ticker.history(period=f"{days}d")
-        if len(df) < 50:
-            logger.warning(f"  {symbol}: insufficient price data ({len(df)} days)")
-            return None
-        return df
-    except Exception as e:
-        logger.error(f"  {symbol}: failed to fetch price data: {e}")
-        return None
-
-
-def run():
-    """
-    Main entry point for the technical signal generator.
-
-    Reads basket.json, fetches prices, computes indicators, generates signals.
-    """
+def run(session: str):
+    """Main entry point — reads cached prices, applies session config, generates signals."""
     config = load_config()["technical"]
+    session_label = {"A": "Conservative", "B": "Balanced", "C": "Aggressive"}[session]
+
     logger.info("=" * 60)
-    logger.info("Layer 2: Technical Signal Generator — starting")
+    logger.info(f"Layer 2: Technical Signal Generator — Session {session} ({session_label})")
     logger.info("=" * 60)
 
-    # Load fundamental basket
-    basket = load_json("basket.json")
-    if not basket:
-        logger.error("No basket found. Run Layer 1 (screener.py) first.")
+    # Load cached prices (shared across all sessions)
+    prices = load_json("prices.json")
+    if not prices:
+        logger.error("No cached prices found. Run price_fetcher.py first.")
         return []
 
-    # Load current positions
-    positions = load_json("positions.json")
+    # Load current positions for this session
+    positions_file = f"positions_{session}.json"
+    positions = load_json(positions_file)
 
     signals = []
     held_symbols = {p["symbol"] for p in positions}
 
-    for stock in basket:
-        symbol = stock["symbol"]
-        logger.info(f"[{symbol}] Fetching price data...")
+    for symbol, stock_data in prices.items():
+        logger.info(f"[{session}/{symbol}] Analyzing...")
 
-        df = fetch_price_history(symbol, config["price_history_days"])
-        if df is None:
+        candles = stock_data.get("candles", [])
+        if len(candles) < 50:
+            logger.warning(f"  {symbol}: insufficient candle data ({len(candles)})")
             continue
 
+        df = candles_to_dataframe(candles)
         df = compute_indicators(df, config)
         last_close = float(df["Close"].iloc[-1])
 
-        # Check if we already hold this stock
         held = next((p for p in positions if p["symbol"] == symbol), None)
 
         if held:
-            # --- Check exit ---
+            # Check exit
             if check_exit(df, held["strategy"], config):
                 signals.append({
                     "symbol": symbol,
@@ -216,10 +206,11 @@ def run():
                     "strategy": held["strategy"],
                     "qty": held["qty"],
                     "current_price": round(last_close, 2),
+                    "session": session,
                     "generated_at": now_iso(),
                 })
             else:
-                # --- Update trailing stop loss ---
+                # Update trailing stop loss
                 strategy_config = config[held["strategy"]]
                 sl_pct = strategy_config["stop_loss_pct"]
                 new_sl = max(held.get("sl", 0), last_close * (1 - sl_pct))
@@ -231,12 +222,12 @@ def run():
                         "new_sl": round(new_sl, 2),
                         "old_sl": held.get("sl"),
                         "strategy": held["strategy"],
+                        "session": session,
                         "generated_at": now_iso(),
                     })
-                    logger.info(f"  Updated SL: {held.get('sl')} → {new_sl:.2f}")
+                    logger.info(f"  Updated SL: {held.get('sl')} -> {new_sl:.2f}")
         else:
-            # --- Check entry ---
-            # Try swing first (shorter term), then positional
+            # Check entry — swing first, then positional
             if check_swing_entry(df, config):
                 sl_pct = config["swing"]["stop_loss_pct"]
                 signals.append({
@@ -247,6 +238,7 @@ def run():
                     "sl": round(last_close * (1 - sl_pct), 2),
                     "target": round(last_close * (1 + config["swing"]["target_pct"]), 2),
                     "rsi": round(float(df["rsi"].iloc[-1]), 2),
+                    "session": session,
                     "generated_at": now_iso(),
                 })
             elif check_positional_entry(df, config):
@@ -259,13 +251,16 @@ def run():
                     "sl": round(last_close * (1 - sl_pct), 2),
                     "target": round(last_close * (1 + config["positional"]["target_pct"]), 2),
                     "rsi": round(float(df["rsi"].iloc[-1]), 2),
+                    "session": session,
                     "generated_at": now_iso(),
                 })
 
-    # Save signals
-    save_json(signals, "signals.json")
+    # Save signals for this session
+    signals_file = f"signals_{session}.json"
+    save_json(signals, signals_file)
+
     logger.info("=" * 60)
-    logger.info(f"Signal generation complete: {len(signals)} actions for {len(basket)} stocks")
+    logger.info(f"Session {session} ({session_label}): {len(signals)} actions for {len(prices)} stocks")
     buys = [s for s in signals if s["action"] == "BUY"]
     sells = [s for s in signals if s["action"] == "SELL"]
     sl_updates = [s for s in signals if s["action"] == "UPDATE_SL"]
@@ -276,4 +271,23 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Technical Signal Generator — runs on cached prices.json.\n\n"
+            "Sessions:\n"
+            "  A = Conservative (tight RSI 45-60, 1.2x vol, 1.5% SL, 4% target)\n"
+            "  B = Balanced (RSI 40-65, 1.5x vol, 2% SL, 6% target)\n"
+            "  C = Aggressive (RSI 35-70, 2.0x vol, 3% SL, 8% target)\n\n"
+            "Examples:\n"
+            "  python -m src.technicals --session A    # conservative\n"
+            "  python -m src.technicals --session B    # balanced (default)\n"
+            "  python -m src.technicals --session C    # aggressive"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--session", default="B", choices=["A", "B", "C"],
+        help="Trading session profile (default: B = balanced)",
+    )
+    args = parser.parse_args()
+    run(args.session)

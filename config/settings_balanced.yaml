@@ -1,0 +1,81 @@
+# ============================================================
+# Session B: Balanced (original settings, with session suffix on data files)
+# ============================================================
+
+# ----------------------------------------------------------
+# Layer 1: Fundamental Screener (shared across all sessions)
+# ----------------------------------------------------------
+fundamental:
+  universe_indices:
+    - "CNXMIDCAP"
+    - "CNX100"
+
+  min_f_score: 7
+  min_roce: 18.0
+  max_debt_equity: 0.5
+  min_promoter_holding: 50.0
+  max_pledged: 5.0
+
+  weights:
+    piotroski: 25
+    roce: 20
+    debt_equity: 15
+    revenue_growth: 20
+    promoter_holding: 10
+    pledge: 10
+
+  basket_size: 15
+  output_file: "data/basket.json"
+  request_delay: 2
+
+# ----------------------------------------------------------
+# Layer 2: Technical Signal Generator (balanced tuning)
+# ----------------------------------------------------------
+technical:
+  swing:
+    lookback_days: 20
+    volume_multiplier: 1.5
+    rsi_min: 40
+    rsi_max: 65
+    stop_loss_pct: 0.02
+    target_pct: 0.06
+
+  positional:
+    ema_fast: 50
+    ema_slow: 200
+    stop_loss_pct: 0.05
+    target_pct: 0.15
+
+  rsi_period: 14
+  volume_avg_period: 20
+  price_history_days: 365
+  output_file: "data/signals_B.json"
+
+# ----------------------------------------------------------
+# Layer 3: Dhan Execution
+# ----------------------------------------------------------
+execution:
+  max_positions: 8
+  capital_per_stock: 25000
+  product_type: "CNC"
+  order_type: "MARKET"
+  sl_check_interval_sec: 600
+  market_open: "09:15"
+  market_close: "15:30"
+  positions_file: "data/positions_B.json"
+
+# ----------------------------------------------------------
+# Scheduling
+# ----------------------------------------------------------
+schedule:
+  technical_scan: "22 9 * * 1-5"
+  execute_signals: "27 9 * * 1-5"
+  sl_monitor_start: "15 9 * * 1-5"
+  token_refresh: "45 8 * * 1-5"
+
+# ----------------------------------------------------------
+# Dhan API
+# ----------------------------------------------------------
+dhan:
+  base_url: "https://api.dhan.co/v2"
+  exchange_segment: "NSE_EQ"
