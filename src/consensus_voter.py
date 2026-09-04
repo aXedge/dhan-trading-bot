@@ -160,6 +160,14 @@ def compute_supertrend(df: pd.DataFrame, period: int = 10, multiplier: float = 3
     lower_band = lower_basic.copy()
 
     for i in range(1, len(df)):
+        # Skip if current bands are NaN (ATR warmup)
+        if pd.isna(upper_basic.iloc[i]) or pd.isna(lower_basic.iloc[i]):
+            continue
+        # If previous band is NaN (warmup), initialize from basic
+        if pd.isna(upper_band.iloc[i - 1]):
+            upper_band.iloc[i] = upper_basic.iloc[i]
+            lower_band.iloc[i] = lower_basic.iloc[i]
+            continue
         # Upper band
         if (upper_basic.iloc[i] < upper_band.iloc[i - 1]) or (df["Close"].iloc[i - 1] > upper_band.iloc[i - 1]):
             upper_band.iloc[i] = upper_basic.iloc[i]
@@ -176,26 +184,33 @@ def compute_supertrend(df: pd.DataFrame, period: int = 10, multiplier: float = 3
     supertrend = pd.Series(index=df.index, dtype=float)
     direction = pd.Series(index=df.index, dtype=int)
 
-    # Initialize
-    if len(df) > 0:
-        supertrend.iloc[0] = upper_band.iloc[0]
-        direction.iloc[0] = -1
+    # Find first valid index (where ATR is available)
+    first_valid = None
+    for i in range(len(df)):
+        if not pd.isna(upper_band.iloc[i]) and not pd.isna(lower_band.iloc[i]):
+            first_valid = i
+            break
 
-    for i in range(1, len(df)):
-        close = df["Close"].iloc[i]
+    if first_valid is not None:
+        supertrend.iloc[first_valid] = upper_band.iloc[first_valid]
+        direction.iloc[first_valid] = -1
 
-        if close <= supertrend.iloc[i - 1]:
-            # Downtrend — use upper band
-            supertrend.iloc[i] = min(upper_band.iloc[i], supertrend.iloc[i - 1])
-            direction.iloc[i] = -1
-        else:
-            # Uptrend — use lower band
-            supertrend.iloc[i] = max(lower_band.iloc[i], supertrend.iloc[i - 1])
-            direction.iloc[i] = 1
+        for i in range(first_valid + 1, len(df)):
+            if pd.isna(upper_band.iloc[i]) or pd.isna(lower_band.iloc[i]):
+                continue
+            close = df["Close"].iloc[i]
+            prev_st = supertrend.iloc[i - 1]
+            if pd.isna(prev_st):
+                prev_st = upper_band.iloc[i]
 
-            # Check if we just flipped from red to green
-            if direction.iloc[i - 1] == -1:
-                supertrend.iloc[i] = lower_band.iloc[i]
+            if close <= prev_st:
+                supertrend.iloc[i] = min(upper_band.iloc[i], prev_st) if not pd.isna(upper_band.iloc[i]) else prev_st
+                direction.iloc[i] = -1
+            else:
+                supertrend.iloc[i] = max(lower_band.iloc[i], prev_st) if not pd.isna(lower_band.iloc[i]) else prev_st
+                direction.iloc[i] = 1
+                if direction.iloc[i - 1] == -1 or pd.isna(direction.iloc[i - 1]):
+                    supertrend.iloc[i] = lower_band.iloc[i]
 
     df["supertrend"] = supertrend
     df["supertrend_dir"] = direction
@@ -209,8 +224,8 @@ def compute_supertrend(df: pd.DataFrame, period: int = 10, multiplier: float = 3
 
 def strategy_breakout(df: pd.DataFrame, config: dict) -> str:
     """
-    Breakout strategy: price above N-day high + volume confirmation.
-    Trend filter: only buy when EMA50 > EMA200.
+    Breakout strategy (state-based): bullish when price is above recent high
+    in an uptrend with volume confirmation.
 
     Returns: 'BUY', 'SELL', or 'HOLD'
     """
@@ -218,28 +233,18 @@ def strategy_breakout(df: pd.DataFrame, config: dict) -> str:
         return "HOLD"
 
     last = df.iloc[-1]
-    prev = df.iloc[-2]
 
-    lookback = config.get("lookback_days", 20)
-    vol_mult = config.get("volume_multiplier", 2.0)
-    rsi_min = config.get("rsi_min", 35)
-    rsi_max = config.get("rsi_max", 70)
-
-    # Trend filter
     in_uptrend = last["ema50"] > last["ema200"]
-
-    # Entry: breakout + volume + RSI range + uptrend
     breakout = last["Close"] > last["high_lookback"]
-    vol_confirm = last["Volume"] > last["vol_avg"] * vol_mult
-    rsi_ok = rsi_min < last["rsi"] < rsi_max
+    vol_good = last["Volume"] > last["vol_avg"] * 1.5
+    rsi_ok = 30 < last["rsi"] < 75
 
-    if breakout and vol_confirm and rsi_ok and in_uptrend:
+    if breakout and vol_good and rsi_ok and in_uptrend:
         return "BUY"
 
-    # Exit: close below EMA10 or RSI > 75
     if last["Close"] < last["ema10"]:
         return "SELL"
-    if last["rsi"] > 75:
+    if last["rsi"] > 78:
         return "SELL"
 
     return "HOLD"
@@ -251,8 +256,8 @@ def strategy_breakout(df: pd.DataFrame, config: dict) -> str:
 
 def strategy_pullback(df: pd.DataFrame, config: dict) -> str:
     """
-    Pullback-to-EMA strategy: buy when a stock in an uptrend (EMA50 > EMA200)
-    pulls back to EMA20 with RSI between 40-50.
+    Pullback-to-EMA strategy (state-based): bullish when a stock in an uptrend
+    (EMA50 > EMA200) pulls back to EMA20 zone with RSI 35-60.
 
     Returns: 'BUY', 'SELL', or 'HOLD'
     """
@@ -266,24 +271,19 @@ def strategy_pullback(df: pd.DataFrame, config: dict) -> str:
     if last["ema50"] <= last["ema200"]:
         return "HOLD"
 
-    # Entry: price near EMA20 (within 1.5%) and RSI 40-50
+    # Relaxed: within 3% of EMA20, RSI 35-60
     dist_to_ema20 = abs(last["Close"] - last["ema20"]) / last["Close"]
-    near_ema20 = dist_to_ema20 < 0.015
-    rsi_pullback = 40 <= last["rsi"] <= 55
-
-    # Price should be above EMA50 (pullback to EMA20, not a crash)
+    near_ema20 = dist_to_ema20 < 0.03
+    rsi_zone = 35 <= last["rsi"] <= 60
     above_ema50 = last["Close"] > last["ema50"]
-
-    # Previous candle should have closed below EMA20 or RSI should be rising
     rsi_rising = last["rsi"] > prev["rsi"]
 
-    if near_ema20 and rsi_pullback and above_ema50 and rsi_rising:
+    if near_ema20 and rsi_zone and above_ema50 and rsi_rising:
         return "BUY"
 
-    # Exit: close below EMA50 or RSI > 70
     if last["Close"] < last["ema50"]:
         return "SELL"
-    if last["rsi"] > 70:
+    if last["rsi"] > 72:
         return "SELL"
 
     return "HOLD"
@@ -295,7 +295,8 @@ def strategy_pullback(df: pd.DataFrame, config: dict) -> str:
 
 def strategy_supertrend(df: pd.DataFrame, config: dict) -> str:
     """
-    Supertrend strategy: buy on green flip, sell on red flip.
+    Supertrend strategy (state-based): bullish while supertrend is green,
+    bearish while red.
 
     Returns: 'BUY', 'SELL', or 'HOLD'
     """
@@ -303,14 +304,10 @@ def strategy_supertrend(df: pd.DataFrame, config: dict) -> str:
         return "HOLD"
 
     last = df.iloc[-1]
-    prev = df.iloc[-2]
 
-    # Entry: supertrend just flipped to green (1)
-    if last["supertrend_dir"] == 1 and prev["supertrend_dir"] == -1:
+    if last["supertrend_dir"] == 1:
         return "BUY"
-
-    # Exit: supertrend flipped to red (-1)
-    if last["supertrend_dir"] == -1 and prev["supertrend_dir"] == 1:
+    if last["supertrend_dir"] == -1:
         return "SELL"
 
     return "HOLD"
@@ -322,8 +319,8 @@ def strategy_supertrend(df: pd.DataFrame, config: dict) -> str:
 
 def strategy_macd(df: pd.DataFrame, config: dict) -> str:
     """
-    MACD strategy: buy on bullish crossover (MACD line crosses above signal).
-    Sell on bearish crossover.
+    MACD strategy (state-based): bullish while MACD line > signal line
+    and histogram is positive.
 
     Returns: 'BUY', 'SELL', or 'HOLD'
     """
@@ -331,16 +328,10 @@ def strategy_macd(df: pd.DataFrame, config: dict) -> str:
         return "HOLD"
 
     last = df.iloc[-1]
-    prev = df.iloc[-2]
 
-    # Entry: MACD line crosses above signal line
-    if prev["macd_line"] <= prev["macd_signal"] and last["macd_line"] > last["macd_signal"]:
-        # Only buy if MACD histogram is positive and growing
-        if last["macd_hist"] > 0:
-            return "BUY"
-
-    # Exit: MACD line crosses below signal line
-    if prev["macd_line"] >= prev["macd_signal"] and last["macd_line"] < last["macd_signal"]:
+    if last["macd_line"] > last["macd_signal"] and last["macd_hist"] > 0:
+        return "BUY"
+    if last["macd_line"] < last["macd_signal"] and last["macd_hist"] < 0:
         return "SELL"
 
     return "HOLD"
@@ -352,8 +343,8 @@ def strategy_macd(df: pd.DataFrame, config: dict) -> str:
 
 def strategy_rsi_mean_reversion(df: pd.DataFrame, config: dict) -> str:
     """
-    RSI Mean Reversion: buy when RSI was oversold (< 35) and is now turning up,
-    but only in an uptrend (EMA50 > EMA200).
+    RSI Mean Reversion (state-based): bullish while RSI is recovering from
+    oversold in an uptrend (EMA50 > EMA200).
 
     Returns: 'BUY', 'SELL', or 'HOLD'
     """
@@ -362,25 +353,22 @@ def strategy_rsi_mean_reversion(df: pd.DataFrame, config: dict) -> str:
 
     last = df.iloc[-1]
     prev = df.iloc[-2]
-    prev2 = df.iloc[-3]
 
     # Must be in uptrend
     if last["ema50"] <= last["ema200"]:
         return "HOLD"
 
-    # Entry: RSI was below 35 (or below 40) within last 3 candles and is now rising
-    was_oversold = any(df["rsi"].iloc[i] < 40 for i in range(-3, 0))
-    rsi_turning_up = last["rsi"] > prev["rsi"] and prev["rsi"] <= prev2["rsi"]
-    rsi_in_range = 35 < last["rsi"] < 55
+    # RSI was oversold recently and is now recovering
+    was_oversold = any(df["rsi"].iloc[i] < 45 for i in range(-5, 0))
+    rsi_recovering = last["rsi"] > prev["rsi"]
+    rsi_in_zone = 35 < last["rsi"] < 60
 
-    if was_oversold and rsi_turning_up and rsi_in_range:
+    if was_oversold and rsi_recovering and rsi_in_zone:
         return "BUY"
 
-    # Exit: RSI > 65 (mean reversion complete)
-    if last["rsi"] > 65:
+    if last["rsi"] > 70:
         return "SELL"
 
-    # Exit: close below EMA50 (trend broken)
     if last["Close"] < last["ema50"]:
         return "SELL"
 
