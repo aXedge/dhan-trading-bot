@@ -1,0 +1,96 @@
+# ============================================================
+# Session V: Consensus Voting (5 strategies, 3/5 majority)
+# ============================================================
+# Uses the same tuned parameters from the tuner results
+# but adds 4 more strategies for voting consensus.
+
+# ----------------------------------------------------------
+# Layer 1: Fundamental Screener (shared)
+# ----------------------------------------------------------
+fundamental:
+  universe_indices:
+    - "CNXMIDCAP"
+    - "CNX100"
+
+  min_f_score: 7
+  min_roce: 18.0
+  max_debt_equity: 0.5
+  min_promoter_holding: 50.0
+  max_pledged: 5.0
+
+  weights:
+    piotroski: 25
+    roce: 20
+    debt_equity: 15
+    revenue_growth: 20
+    promoter_holding: 10
+    pledge: 10
+
+  basket_size: 15
+  output_file: "data/basket.json"
+  request_delay: 2
+
+# ----------------------------------------------------------
+# Layer 2: Technical (tuned parameters from grid search)
+# ----------------------------------------------------------
+technical:
+  swing:
+    lookback_days: 10
+    volume_multiplier: 2.0
+    rsi_min: 35
+    rsi_max: 70
+    stop_loss_pct: 0.03
+    target_pct: 0.08
+
+  positional:
+    ema_fast: 50
+    ema_slow: 200
+    stop_loss_pct: 0.05
+    target_pct: 0.15
+
+  rsi_period: 14
+  volume_avg_period: 20
+  price_history_days: 365
+  output_file: "data/signals_V.json"
+
+# ----------------------------------------------------------
+# Voting configuration
+# ----------------------------------------------------------
+voting:
+  strategies:
+    - breakout
+    - pullback
+    - supertrend
+    - macd
+    - rsi_mean_reversion
+  vote_threshold: 3          # 3 of 5 needed for entry/exit
+  exit_mode: hybrid          # SL/target always active + majority vote for signal exits
+
+# ----------------------------------------------------------
+# Layer 3: Dhan Execution
+# ----------------------------------------------------------
+execution:
+  max_positions: 8
+  capital_per_stock: 25000
+  product_type: "CNC"
+  order_type: "MARKET"
+  sl_check_interval_sec: 600
+  market_open: "09:15"
+  market_close: "15:30"
+  positions_file: "data/positions_V.json"
+
+# ----------------------------------------------------------
+# Scheduling
+# ----------------------------------------------------------
+schedule:
+  technical_scan: "28 9 * * 1-5"
+  execute_signals: "35 9 * * 1-5"
+  sl_monitor_start: "15 9 * * 1-5"
+  token_refresh: "45 8 * * 1-5"
+
+# ----------------------------------------------------------
+# Dhan API
+# ----------------------------------------------------------
+dhan:
+  base_url: "https://api.dhan.co/v2"
+  exchange_segment: "NSE_EQ"
