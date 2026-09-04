@@ -263,10 +263,19 @@ def run_consensus(df, config, in_position):
     buy_votes = sum(1 for v in votes.values() if v == "BUY")
     sell_votes = sum(1 for v in votes.values() if v == "SELL")
 
+    # Global trend filter: if EMA50 < EMA200, no BUY allowed
+    if not in_position and config.get("trend_filter", True):
+        last = df.iloc[-1]
+        if pd.notna(last.get("ema50")) and pd.notna(last.get("ema200")):
+            if last["ema50"] < last["ema200"]:
+                buy_votes = 0  # zero out buy votes in downtrend
+
+    threshold = config.get("vote_threshold", VOTE_THRESHOLD)
+
     if in_position:
-        consensus = "SELL" if sell_votes >= VOTE_THRESHOLD else "HOLD"
+        consensus = "SELL" if sell_votes >= threshold else "HOLD"
     else:
-        consensus = "BUY" if buy_votes >= VOTE_THRESHOLD else "HOLD"
+        consensus = "BUY" if buy_votes >= threshold else "HOLD"
 
     return consensus, votes, buy_votes, sell_votes
 
@@ -290,12 +299,20 @@ def backtest_stock(symbol, df, config):
         print(f"  {symbol}: only {len(df)} rows, need {warmup}")
         return trades
 
+    cooldown_until = None  # date after which we can re-enter
+
     for i in range(warmup, len(df)):
         window = df.iloc[:i + 1]
         last = window.iloc[-1]
         last_close = float(last["Close"])
         last_high = float(last["High"])
         last_low = float(last["Low"])
+        current_date = last.name
+
+        # Check cooldown
+        in_cooldown = False
+        if cooldown_until and current_date <= cooldown_until:
+            in_cooldown = True
 
         # If in position, check SL/target first (intraday)
         if position:
@@ -324,6 +341,10 @@ def backtest_stock(symbol, df, config):
             window, config, in_position=(position is not None)
         )
 
+        # Skip entry if in cooldown
+        if consensus == "BUY" and in_cooldown:
+            consensus = "HOLD"
+
         if consensus == "BUY" and position is None:
             sl_pct = config.get("stop_loss_pct", 0.03)
             target_pct = config.get("target_pct", 0.08)
@@ -345,6 +366,14 @@ def backtest_stock(symbol, df, config):
             position["sell_votes"] = sell_votes
             position["pnl_pct"] = (last_close - position["entry"]) / position["entry"]
             trades.append(position)
+
+            # Set cooldown if it was a loss
+            cd = config.get("cooldown_days", 0)
+            if position["pnl_pct"] < 0 and cd > 0:
+                cooldown_until = current_date + timedelta(days=cd)
+            else:
+                cooldown_until = None
+
             position = None
 
     # Close any open position at last close
@@ -417,6 +446,11 @@ def print_report(all_trades, config, start_date, end_date):
     print(f"Vote threshold:     {VOTE_THRESHOLD}/5 for entry/exit")
     print(f"Stop loss:           {config.get('stop_loss_pct', 0.03)*100:.1f}%")
     print(f"Target:              {config.get('target_pct', 0.08)*100:.1f}%")
+    tf = "ON" if config.get("trend_filter", True) else "OFF"
+    print(f"Trend filter:        {tf}")
+    print(f"Vote threshold:     {config.get('vote_threshold', 3)}/5")
+    cd = config.get('cooldown_days', 0)
+    print(f"Cooldown after loss: {cd}d")
     print()
     print(f"Total trades:       {total_trades}")
     print(f"  Wins:              {len(wins)}")
@@ -490,6 +524,12 @@ def main():
                         help="Capital per position (for P&L in Rs)")
     parser.add_argument("--save-trades", action="store_true",
                         help="Save detailed trades to JSON")
+    parser.add_argument("--threshold", type=int, default=3,
+                        help="Vote threshold (default: 3 of 5). Try 4 for higher conviction.")
+    parser.add_argument("--no-trend-filter", action="store_true",
+                        help="Disable global trend filter (EMA50 > EMA200 gate)")
+    parser.add_argument("--cooldown", type=int, default=0,
+                        help="Cooldown days after a loss before re-entering same stock (default: 0)")
     args = parser.parse_args()
 
     config = {
@@ -499,13 +539,18 @@ def main():
         "rsi_max": args.rsi_max,
         "stop_loss_pct": args.sl,
         "target_pct": args.target,
+        "trend_filter": not args.no_trend_filter,
+        "vote_threshold": args.threshold,
+        "cooldown_days": args.cooldown,
     }
 
     print(f"\nFetching {len(args.stocks)} stocks from yfinance...")
     print(f"  Period: {args.start} to {args.end}")
+    tf = "ON" if not args.no_trend_filter else "OFF"
     print(f"  Config: lookback={args.lookback}, vol_mult={args.vol_mult}, "
           f"rsi={args.rsi_min}-{args.rsi_max}, SL={args.sl*100:.1f}%, "
           f"target={args.target*100:.1f}%")
+    print(f"  Trend filter: {tf} | Vote threshold: {args.threshold}/5 | Cooldown: {args.cooldown}d")
     print()
 
     all_trades = []

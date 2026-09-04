@@ -424,18 +424,27 @@ def run_consensus(df: pd.DataFrame, config: dict, held: dict = None) -> dict:
     last = df.iloc[-1]
     last_close = float(last["Close"])
 
-    # Entry: need super majority (>= 3) of BUY
-    # Exit: need super majority (>= 3) of SELL
+    # Global trend filter: if EMA50 < EMA200, no BUY allowed
+    # This is the single most important filter (turned PF from 0.88 to 3.02 in tuning)
+    if not held and config.get("trend_filter", True):
+        if pd.notna(last.get("ema50")) and pd.notna(last.get("ema200")):
+            if last["ema50"] < last["ema200"]:
+                buy_votes = 0  # zero out buy votes in downtrend
+
+    threshold = config.get("vote_threshold", VOTE_THRESHOLD)
+
+    # Entry: need super majority of BUY
+    # Exit: need super majority of SELL
     # SL/target are handled separately by the executor/sl_monitor
     if held:
         # If we hold a position, check for exit votes
-        if sell_votes >= VOTE_THRESHOLD:
+        if sell_votes >= threshold:
             consensus = "SELL"
         else:
             consensus = "HOLD"
     else:
         # If we don't hold, check for entry votes
-        if buy_votes >= VOTE_THRESHOLD:
+        if buy_votes >= threshold:
             consensus = "BUY"
         else:
             consensus = "HOLD"

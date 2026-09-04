@@ -64,7 +64,9 @@ voting:
     - macd
     - rsi_mean_reversion
   vote_threshold: 3          # 3 of 5 needed for entry/exit
-  exit_mode: hybrid          # SL/target always active + majority vote for signal exits
+  trend_filter: true          # global gate: no BUY when EMA50 < EMA200
+  exit_mode: hybrid            # SL/target always active + majority vote for signal exits
+  cooldown_days: 0             # cooldown after a loss (0 = disabled)
 
 # ----------------------------------------------------------
 # Layer 3: Dhan Execution
