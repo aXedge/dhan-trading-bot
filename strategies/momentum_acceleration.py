@@ -1,287 +1,240 @@
 """
-Momentum Acceleration Strategy — based on user's personal trading methodology.
+Momentum Acceleration Strategy v2
+==================================
 
-Entry framework:
-  1. MA Gap Acceleration: EMA5 > EMA20 AND the gap between them is widening
-     (today's gap > gap N days ago). This catches accelerating momentum.
-  2. MACD Confirmation: MACD line > signal line + histogram positive.
-  3. Support Proximity: Price is near a support level (EMA20, recent swing low,
-     or 50% Fibonacci retracement of the recent swing).
-  4. Trend Filter: EMA50 > EMA200 (broader uptrend intact).
+Based on the user's personal trading methodology:
+- Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
+- Exit: Trailing stop (ATR-based) + minimum holding period + MACD crossover + RSI overbought
+- Risk: Initial 6% stop loss (backstop), then trailing stop at 2.5x ATR below highest high
 
-Exit framework:
-  - MA gap deceleration: gap between EMA5 and EMA20 starts narrowing
-  - MACD bearish: MACD line crosses below signal line
-  - Stop loss: ATR-based (adapts to volatility) or fixed %
-  - Target: Previous resistance or Fibonacci extension (1.272x or 1.618x)
-
-Holding period: 1-3 months (positional)
-Risk: ATR-based stop loss (typically 5-8%)
-Target: 15-20% (2:1 to 3:1 reward-risk)
+Changes from v1:
+- Added minimum holding period (5 bars) to prevent premature signal exits
+- Replaced single-day gap deceleration exit with ATR trailing stop
+- Gap collapse now requires gap to be meaningfully small (not just narrowing)
+- Trailing stop lets winners run while cutting losses
 """
 
 import pandas as pd
 import numpy as np
-from common.indicators import (
-    add_emas, add_rsi, add_adx, add_volume_indicators,
-    add_atr, add_returns, add_macd
-)
+
+DEFAULT_CONFIG = {
+    # Risk management
+    "stop_loss_pct": 0.06,          # 6% initial fixed stop (backstop during min_holding)
+    "target_pct": 0.15,             # 15% target
+
+    # Exit parameters (NEW in v2)
+    "min_holding_bars": 5,          # min bars before signal exits can trigger
+    "trail_atr_mult": 2.5,          # trailing stop = max_high - 2.5 * ATR
+    "rsi_exit": 75,                 # exit on RSI overbought
+    "gap_collapse_pct": 0.003,      # gap must collapse below 0.3% of price
+
+    # Entry parameters
+    "ema_fast": 5,
+    "ema_slow": 20,
+    "ema_trend": 50,
+    "ema_long": 200,
+    "gap_min_pct": 0.002,          # minimum gap as % of price (0.2%)
+    "support_tol_pct": 0.02,        # within 2% of support level
+    "rsi_entry_max": 70,            # max RSI for entry
+    "adx_min": 15,                  # minimum ADX for entry
+
+    # Indicator parameters
+    "rsi_period": 14,
+    "atr_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "swing_window": 10,
+}
+
+# Module-level state for tracking position info across should_enter/should_exit calls
+_state = {}
 
 
-# ---------------------------------------------------------------------------
-# Indicator computation
-# ---------------------------------------------------------------------------
-
-def prepare(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Compute indicators needed by the momentum acceleration strategy.
-
-    Key indicators:
-    - EMA5, EMA10, EMA20, EMA50, EMA200
-    - MA gap: (EMA5 - EMA20) / EMA20 (as % of price)
-    - MA gap slope: change in gap over N days
-    - MACD (line, signal, histogram)
-    - ATR for volatility-based stops
-    - Swing highs/lows for support/resistance
-    - Fibonacci retracement levels
-    """
+def prepare(df, config):
+    """Compute all indicators on the DataFrame."""
     df = df.copy()
 
-    # EMAs — need both short (5, 10) and medium (20, 50) and long (200)
-    df["ema5"] = df["Close"].ewm(span=5, adjust=False).mean()
-    df["ema10"] = df["Close"].ewm(span=10, adjust=False).mean()
-    df["ema20"] = df["Close"].ewm(span=20, adjust=False).mean()
-    df["ema50"] = df["Close"].ewm(span=50, adjust=False).mean()
-    df["ema200"] = df["Close"].ewm(span=200, adjust=False).mean()
-
-    # MA gap (short vs medium) — the core signal
-    df["ma_gap"] = (df["ema5"] - df["ema20"]) / df["Close"]  # as % of price
-
-    # MA gap slope — is the gap widening or narrowing?
-    gap_lookback = config.get("gap_lookback", 3)  # compare gap today vs 3 days ago
-    df["ma_gap_prev"] = df["ma_gap"].shift(gap_lookback)
-    df["ma_gap_slope"] = df["ma_gap"] - df["ma_gap_prev"]  # positive = widening
-
-    # Also track EMA10 vs EMA50 gap for medium-term momentum
-    df["ma_gap_med"] = (df["ema10"] - df["ema50"]) / df["Close"]
-
-    # RSI
-    rsi_period = config.get("rsi_period", 14)
-    delta = df["Close"].diff()
-    gain = delta.clip(lower=0).rolling(rsi_period).mean()
-    loss = (-delta.clip(upper=0)).rolling(rsi_period).mean()
-    rs = gain / loss
-    df["rsi"] = 100 - (100 / (1 + rs))
+    # EMAs
+    df["ema5"] = df["Close"].ewm(span=config.get("ema_fast", 5)).mean()
+    df["ema20"] = df["Close"].ewm(span=config.get("ema_slow", 20)).mean()
+    df["ema50"] = df["Close"].ewm(span=config.get("ema_trend", 50)).mean()
+    df["ema200"] = df["Close"].ewm(span=config.get("ema_long", 200)).mean()
 
     # MACD
-    df = add_macd(df)
+    macd_fast = df["Close"].ewm(span=config.get("macd_fast", 12)).mean()
+    macd_slow = df["Close"].ewm(span=config.get("macd_slow", 26)).mean()
+    df["macd"] = macd_fast - macd_slow
+    df["macd_signal"] = df["macd"].ewm(span=config.get("macd_signal", 9)).mean()
+    df["macd_hist"] = df["macd"] - df["macd_signal"]
+
+    # RSI (Wilder's method)
+    rsi_period = config.get("rsi_period", 14)
+    delta = df["Close"].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / rsi_period, min_periods=rsi_period).mean()
+    avg_loss = loss.ewm(alpha=1 / rsi_period, min_periods=rsi_period).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    df["rsi"] = 100 - (100 / (1 + rs))
+
+    # ATR (Wilder's method)
+    atr_period = config.get("atr_period", 14)
+    high_low = df["High"] - df["Low"]
+    high_close = (df["High"] - df["Close"].shift()).abs()
+    low_close = (df["Low"] - df["Close"].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    df["atr"] = tr.ewm(alpha=1 / atr_period, min_periods=atr_period).mean()
 
     # ADX
-    df = add_adx(df, config.get("adx_period", 14))
+    adx_period = config.get("atr_period", 14)
+    plus_dm_raw = df["High"].diff()
+    minus_dm_raw = -df["Low"].diff()
+    plus_dm = plus_dm_raw.where((plus_dm_raw > minus_dm_raw) & (plus_dm_raw > 0), 0.0)
+    minus_dm = minus_dm_raw.where((minus_dm_raw > plus_dm_raw) & (minus_dm_raw > 0), 0.0)
+    plus_di = 100 * (plus_dm.ewm(alpha=1 / adx_period, min_periods=adx_period).mean() / df["atr"])
+    minus_di = 100 * (minus_dm.ewm(alpha=1 / adx_period, min_periods=adx_period).mean() / df["atr"])
+    dx = 100 * ((plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan))
+    df["adx"] = dx.ewm(alpha=1 / adx_period, min_periods=adx_period).mean()
 
-    # ATR for volatility-based stops
-    df = add_atr(df, 14)
+    # MA gap
+    df["ma_gap"] = df["ema5"] - df["ema20"]
 
-    # Volume
-    df = add_volume_indicators(df, config.get("volume_avg_period", 20))
+    # Swing low (for support proximity)
+    swing_window = config.get("swing_window", 10)
+    df["swing_low"] = df["Low"].rolling(swing_window, min_periods=3).min()
 
-    # Returns
-    df = add_returns(df)
-
-    # Swing high/low for support/resistance (20-day window)
-    df["swing_low_20"] = df["Low"].rolling(20).min()
-    df["swing_high_20"] = df["High"].rolling(20).max()
-
-    # Fibonacci retracement of recent swing (20-day)
-    swing_range = df["swing_high_20"] - df["swing_low_20"]
-    df["fib_382"] = df["swing_high_20"] - 0.382 * swing_range
-    df["fib_500"] = df["swing_high_20"] - 0.500 * swing_range
-    df["fib_618"] = df["swing_high_20"] - 0.618 * swing_range
-
-    # Distance to support (EMA20 or Fib 50%)
-    df["dist_to_ema20"] = (df["Close"] - df["ema20"]) / df["Close"]
-    df["dist_to_fib50"] = (df["Close"] - df["fib_500"]) / df["Close"]
+    # Fib 50% approx: midpoint of recent range
+    swing_high = df["High"].rolling(20, min_periods=5).max()
+    df["fib_50"] = (swing_high + df["swing_low"]) / 2
 
     return df
 
 
-# ---------------------------------------------------------------------------
-# Entry logic
-# ---------------------------------------------------------------------------
-
-def should_enter(last, config: dict) -> bool:
+def should_enter(last, config, prev=None):
     """
-    Momentum acceleration entry.
+    Entry: MA gap accelerating + MACD confirmation + support proximity.
 
-    All conditions must be met:
-    1. Trend filter: EMA50 > EMA200 (broader uptrend)
-    2. Short > Medium: EMA5 > EMA20 (short-term momentum positive)
-    3. Gap acceleration: MA gap is widening (gap today > gap N days ago)
-    4. MACD confirmation: MACD line > signal line + histogram > 0
-    5. Near support: price within tolerance of EMA20 or Fib 50% or swing low
-    6. RSI not overbought: RSI < 70 (room to run)
-    7. ADX >= 15 (enough trend to sustain)
+    1. Price above EMA200 (long-term uptrend)
+    2. EMA5 > EMA20 (short-term uptrend)
+    3. Gap widening (current gap > prev gap)
+    4. Gap is meaningfully positive (> gap_min_pct of price)
+    5. MACD line > signal line
+    6. MACD histogram > 0
+    7. Near support (EMA20, EMA50, swing low, or fib 50%)
+    8. RSI not overbought (< rsi_entry_max)
+    9. ADX >= adx_min (trend strength)
     """
-    # 1. Broader uptrend
-    if last["ema50"] <= last["ema200"]:
+    if prev is None:
         return False
 
-    # 2. Short-term above medium-term
+    if pd.isna(last.get("ema200")) or pd.isna(last.get("atr")) or pd.isna(last.get("adx")):
+        return False
+
+    close = last["Close"]
+
+    # 1. Long-term trend filter
+    if close < last["ema200"]:
+        return False
+
+    # 2. Short-term trend
     if last["ema5"] <= last["ema20"]:
         return False
 
-    # 3. MA gap acceleration — the core signal
-    # Gap must be positive AND widening
-    if pd.isna(last["ma_gap"]) or last["ma_gap"] <= 0:
+    # 3 & 4. MA gap acceleration — gap must be positive AND widening
+    gap = last["ema5"] - last["ema20"]
+    prev_gap = prev["ema5"] - prev["ema20"]
+    gap_min = close * config.get("gap_min_pct", 0.002)
+    if gap < gap_min:
         return False
-    if pd.isna(last["ma_gap_slope"]):
-        return False
-    # Gap must be widening (slope > 0) or at least not narrowing significantly
-    min_slope = config.get("min_gap_slope", 0.0)  # default: just not narrowing
-    if last["ma_gap_slope"] < min_slope:
+    if gap <= prev_gap:
         return False
 
-    # 4. MACD confirmation
-    if config.get("use_macd", True):
-        if pd.isna(last.get("macd_line")) or pd.isna(last.get("macd_signal")):
-            return False
-        if last["macd_line"] <= last["macd_signal"]:
-            return False
-        if last["macd_hist"] <= 0:
-            return False
-
-    # 5. Near support level — price should be near a support zone
-    # Check if close is within tolerance of EMA20, Fib 50%, or recent swing low
-    if config.get("use_support", True):
-        tolerance = config.get("support_tolerance", 0.04)  # within 4% of a support level
-
-        near_ema20 = abs(last["dist_to_ema20"]) < tolerance
-        near_fib50 = abs(last["dist_to_fib50"]) < tolerance if pd.notna(last.get("dist_to_fib50")) else False
-        near_swing_low = (last["Close"] - last["swing_low_20"]) / last["Close"] < tolerance if pd.notna(last.get("swing_low_20")) else False
-
-        if not (near_ema20 or near_fib50 or near_swing_low):
-            return False
-
-    # 6. RSI not overbought
-    rsi_max = config.get("rsi_max", 70)
-    if last["rsi"] > rsi_max:
+    # 5 & 6. MACD confirmation
+    if pd.isna(last.get("macd")) or last["macd"] <= last["macd_signal"]:
+        return False
+    if last.get("macd_hist", 0) <= 0:
         return False
 
-    # 7. ADX minimum
-    adx_min = config.get("adx_min", 15)
-    if pd.isna(last["adx"]) or last["adx"] < adx_min:
+    # 7. Support proximity — near EMA20, EMA50, swing low, or fib 50%
+    support_tol = close * config.get("support_tol_pct", 0.02)
+    near_ema20 = abs(close - last["ema20"]) < support_tol
+    near_ema50 = abs(close - last["ema50"]) < support_tol * 1.5
+    near_swing = abs(close - last.get("swing_low", close)) < support_tol * 1.5
+    near_fib = abs(close - last.get("fib_50", close)) < support_tol * 1.5
+    if not (near_ema20 or near_ema50 or near_swing or near_fib):
         return False
+
+    # 8. RSI not overbought
+    if last.get("rsi", 50) > config.get("rsi_entry_max", 70):
+        return False
+
+    # 9. ADX trend strength
+    if last.get("adx", 0) < config.get("adx_min", 15):
+        return False
+
+    # Entry confirmed — initialize position state
+    _state.clear()
+    _state["entry_price"] = close
+    _state["bars_held"] = 0
+    _state["max_high"] = last["High"]
 
     return True
 
 
-# ---------------------------------------------------------------------------
-# Exit logic
-# ---------------------------------------------------------------------------
-
-def should_exit(last, config: dict, prev=None) -> bool:
+def should_exit(last, config, prev=None):
     """
-    Momentum acceleration exit.
+    Exit logic (v2):
 
-    Exits when momentum starts decelerating:
-    1. MA gap narrowing: gap today < gap N days ago (momentum fading)
-    2. MACD bearish: MACD line < signal line
-    3. Price below EMA20 (support broken)
-    4. RSI overbought (take profits)
+    During min_holding_bars: only fixed SL/target can exit (handled by engine).
+    After min_holding_bars, in priority order:
+    1. Trailing stop: close < max_high - trail_atr_mult * ATR
+    2. RSI overbought: RSI > rsi_exit
+    3. MACD bearish crossover: MACD crosses below signal
+    4. Gap collapse: MA gap narrows below gap_collapse_pct of price
     """
-    # MA gap deceleration — primary exit signal
-    if pd.notna(last.get("ma_gap_slope")):
-        if last["ma_gap_slope"] < config.get("exit_gap_slope", -0.002):
-            # Gap is narrowing significantly — momentum fading
-            return True
+    if not _state:
+        return False
 
-    # MACD bearish
-    if pd.notna(last.get("macd_line")) and pd.notna(last.get("macd_signal")):
-        if last["macd_line"] < last["macd_signal"] and last["macd_hist"] < 0:
-            return True
+    # Update position state
+    _state["bars_held"] += 1
+    _state["max_high"] = max(_state["max_high"], last["High"])
 
-    # Price below EMA20 (support broken)
-    if last["Close"] < last["ema20"]:
+    bars_held = _state["bars_held"]
+    entry_price = _state["entry_price"]
+    max_high = _state["max_high"]
+    atr = last.get("atr", entry_price * 0.02)
+    if pd.isna(atr):
+        atr = entry_price * 0.02
+
+    min_holding = config.get("min_holding_bars", 5)
+
+    # During minimum holding period, no signal exits
+    if bars_held < min_holding:
+        return False
+
+    # 1. Trailing stop — primary exit, lets winners run
+    trail_mult = config.get("trail_atr_mult", 2.5)
+    trailing_stop = max_high - trail_mult * atr
+    if last["Close"] < trailing_stop:
         return True
 
-    # RSI overbought — take profits
-    rsi_exit = config.get("rsi_exit", 75)
-    if last["rsi"] > rsi_exit:
+    # 2. RSI overbought — take profit
+    if last.get("rsi", 50) > config.get("rsi_exit", 75):
         return True
+
+    # 3. MACD bearish crossover
+    if prev is not None:
+        if last.get("macd", 0) < last.get("macd_signal", 0) and \
+           prev.get("macd", 0) >= prev.get("macd_signal", 0):
+            return True
+
+    # 4. MA gap collapse — momentum has dissipated
+    gap = last.get("ma_gap", 0)
+    gap_threshold = last["Close"] * config.get("gap_collapse_pct", 0.003)
+    if gap < gap_threshold:
+        prev_gap = prev.get("ma_gap", gap) if prev is not None else gap * 2
+        if prev_gap > gap_threshold:
+            return True
 
     return False
-
-
-# ---------------------------------------------------------------------------
-# Stop loss and target (ATR-based)
-# ---------------------------------------------------------------------------
-
-def get_stop_loss(entry_price: float, config: dict, atr: float = None) -> float:
-    """
-    ATR-based stop loss. Falls back to fixed % if ATR not available.
-
-    ATR multiplier of 2x gives a stop that adapts to volatility:
-    - Low volatility stock: tighter stop (e.g., 4%)
-    - High volatility stock: wider stop (e.g., 8%)
-    """
-    if atr and pd.notna(atr) and atr > 0:
-        atr_mult = config.get("atr_multiplier", 2.0)
-        return round(entry_price - (atr * atr_mult), 2)
-    else:
-        sl_pct = config.get("stop_loss_pct", 0.06)
-        return round(entry_price * (1 - sl_pct), 2)
-
-
-def get_target(entry_price: float, config: dict, atr: float = None) -> float:
-    """
-    ATR-based target. 3x ATR for 1.5:1 reward-risk with 2x ATR stop.
-    Falls back to fixed % if ATR not available.
-    """
-    if atr and pd.notna(atr) and atr > 0:
-        atr_mult = config.get("atr_target_multiplier", 3.0)
-        return round(entry_price + (atr * atr_mult), 2)
-    else:
-        target_pct = config.get("target_pct", 0.15)
-        return round(entry_price * (1 + target_pct), 2)
-
-
-# ---------------------------------------------------------------------------
-# Default config
-# ---------------------------------------------------------------------------
-
-DEFAULT_CONFIG = {
-    # MA gap settings
-    "gap_lookback": 3,             # compare gap today vs 3 days ago
-    "min_gap_slope": 0.0,          # gap must not be narrowing (0 = flat or widening)
-
-    # Support proximity
-    "use_support": True,
-    "support_tolerance": 0.04,     # within 4% of a support level
-
-    # MACD
-    "use_macd": True,
-
-    # RSI
-    "rsi_period": 14,
-    "rsi_max": 70,                 # don't enter overbought
-    "rsi_exit": 75,                # exit when overbought
-
-    # ADX
-    "adx_period": 14,
-    "adx_min": 15,
-
-    # Volume
-    "volume_avg_period": 20,
-
-    # Risk management
-    "stop_loss_pct": 0.06,         # 6% fixed SL fallback
-    "target_pct": 0.15,            # 15% fixed target fallback
-    "atr_multiplier": 2.0,          # SL = 2x ATR
-    "atr_target_multiplier": 3.0,  # Target = 3x ATR (1.5:1 RR)
-
-    # Exit
-    "exit_gap_slope": -0.002,      # exit if gap narrows by more than 0.2%
-
-    # Cooldown
-    "cooldown_days": 0,
-}
