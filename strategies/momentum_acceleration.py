@@ -6,12 +6,6 @@ Based on the user\'s personal trading methodology:
 - Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
 - Exit: Chandelier trailing stop (stateless) + RSI overbought + MACD crossover + gap collapse
 - Risk: Initial 6% stop loss (backstop), 15% target
-
-v2.1 fixes:
-- Removed module-level _state (was causing 0 trades — incompatible with backtest engine)
-- Replaced stateful trailing stop with Chandelier exit (rolling max high - ATR multiplier)
-- All exit logic is now stateless (only depends on last/prev row data)
-- No minimum holding period needed — Chandelier stop is loose at entry (uses 10-bar lookback)
 """
 
 import pandas as pd
@@ -51,6 +45,10 @@ DEFAULT_CONFIG = {
 def prepare(df, config):
     """Compute all indicators on the DataFrame."""
     df = df.copy()
+
+    # Flatten multi-level columns from yfinance (e.g., ('Close', 'RELIANCE.NS') -> 'Close')
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
     # EMAs
     df["ema5"] = df["Close"].ewm(span=config.get("ema_fast", 5)).mean()
