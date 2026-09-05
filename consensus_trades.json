@@ -1,0 +1,492 @@
+[
+  {
+    "symbol": "COLPAL",
+    "entry": 2855.9580078125,
+    "entry_date": "2024-11-26",
+    "sl": 2713.16,
+    "target": 3141.55,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 2713.16,
+    "exit_date": "2024-12-09",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.05000003761325442
+  },
+  {
+    "symbol": "OFSS",
+    "entry": 10881.7626953125,
+    "entry_date": "2024-10-14",
+    "sl": 10337.67,
+    "target": 11969.94,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 10337.67,
+    "exit_date": "2024-10-22",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.050000419100011885
+  },
+  {
+    "symbol": "OFSS",
+    "entry": 10683.9130859375,
+    "entry_date": "2024-11-08",
+    "sl": 10149.72,
+    "target": 11752.3,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 10334.9130859375,
+    "exit_date": "2024-11-21",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.03266593402555518
+  },
+  {
+    "symbol": "NATIONALUM",
+    "entry": 165.4779510498047,
+    "entry_date": "2024-08-26",
+    "sl": 157.2,
+    "target": 182.03,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 5,
+    "exit_price": 157.2,
+    "exit_date": "2024-09-06",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.05002449569437347
+  },
+  {
+    "symbol": "NATIONALUM",
+    "entry": 186.09066772460938,
+    "entry_date": "2025-07-21",
+    "sl": 176.79,
+    "target": 204.7,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 178.58938598632812,
+    "exit_date": "2025-07-30",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.040309822249561686
+  },
+  {
+    "symbol": "NATIONALUM",
+    "entry": 182.57861328125,
+    "entry_date": "2025-08-19",
+    "sl": 173.45,
+    "target": 200.84,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 177.53004455566406,
+    "exit_date": "2025-08-26",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.027651479189454455
+  },
+  {
+    "symbol": "HINDZINC",
+    "entry": 605.225341796875,
+    "entry_date": "2024-08-02",
+    "sl": 574.96,
+    "target": 665.75,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 574.96,
+    "exit_date": "2024-08-05",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.05000673254530142
+  },
+  {
+    "symbol": "HINDZINC",
+    "entry": 504.2768249511719,
+    "entry_date": "2024-10-23",
+    "sl": 479.06,
+    "target": 554.7,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 5,
+    "exit_price": 488.7739562988281,
+    "exit_date": "2024-11-07",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.030742774375651434
+  },
+  {
+    "symbol": "VBL",
+    "entry": 665.9810791015625,
+    "entry_date": "2024-07-26",
+    "sl": 632.68,
+    "target": 732.58,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "HOLD",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 632.68,
+    "exit_date": "2024-07-30",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.050003040846876845
+  },
+  {
+    "symbol": "VBL",
+    "entry": 614.6412353515625,
+    "entry_date": "2024-08-21",
+    "sl": 583.91,
+    "target": 676.11,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 598.4811401367188,
+    "exit_date": "2024-09-05",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.02629191516185942
+  },
+  {
+    "symbol": "VBL",
+    "entry": 624.887939453125,
+    "entry_date": "2024-10-23",
+    "sl": 593.64,
+    "target": 687.38,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "HOLD",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 593.64,
+    "exit_date": "2024-10-25",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.05000566898518135
+  },
+  {
+    "symbol": "VBL",
+    "entry": 626.47802734375,
+    "entry_date": "2024-11-19",
+    "sl": 595.15,
+    "target": 689.13,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "HOLD",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 595.15,
+    "exit_date": "2024-11-25",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.05000658598766826
+  },
+  {
+    "symbol": "VBL",
+    "entry": 646.8521118164062,
+    "entry_date": "2025-01-01",
+    "sl": 614.51,
+    "target": 711.54,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 614.51,
+    "exit_date": "2025-01-07",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.04999923665022494
+  },
+  {
+    "symbol": "HAL",
+    "entry": 4351.87939453125,
+    "entry_date": "2024-11-11",
+    "sl": 4134.29,
+    "target": 4787.07,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 4134.29,
+    "exit_date": "2024-11-12",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.04999894868517767
+  },
+  {
+    "symbol": "HAL",
+    "entry": 4274.36376953125,
+    "entry_date": "2024-11-26",
+    "sl": 4060.65,
+    "target": 4701.8,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 4294.4892578125,
+    "exit_date": "2024-12-19",
+    "exit_reason": "Consensus SELL (5/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "SELL",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 5,
+    "pnl_pct": 0.004708417291179003
+  },
+  {
+    "symbol": "HAL",
+    "entry": 4939.458984375,
+    "entry_date": "2025-07-09",
+    "sl": 4692.49,
+    "target": 5433.4,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 4724.318359375,
+    "exit_date": "2025-07-17",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.04355550388829116
+  },
+  {
+    "symbol": "COALINDIA",
+    "entry": 436.3975830078125,
+    "entry_date": "2024-09-24",
+    "sl": 414.58,
+    "target": 480.04,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 414.58,
+    "exit_date": "2024-10-07",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.04999473841591357
+  },
+  {
+    "symbol": "BRITANNIA",
+    "entry": 5692.19970703125,
+    "entry_date": "2025-08-04",
+    "sl": 5407.59,
+    "target": 6261.42,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 5407.59,
+    "exit_date": "2025-08-06",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.04999995110496346
+  },
+  {
+    "symbol": "BRITANNIA",
+    "entry": 5671.05224609375,
+    "entry_date": "2025-08-26",
+    "sl": 5387.5,
+    "target": 6238.16,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "HOLD",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 5728.59375,
+    "exit_date": "2025-08-29",
+    "exit_reason": "End of data",
+    "pnl_pct": 0.010146530380827454
+  },
+  {
+    "symbol": "SUNPHARMA",
+    "entry": 1725.903076171875,
+    "entry_date": "2025-04-22",
+    "sl": 1639.61,
+    "target": 1898.49,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 1723.3349609375,
+    "exit_date": "2025-05-09",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.001487983462009458
+  },
+  {
+    "symbol": "WIPRO",
+    "entry": 254.2487335205078,
+    "entry_date": "2024-10-18",
+    "sl": 241.54,
+    "target": 279.67,
+    "votes": {
+      "breakout": "HOLD",
+      "pullback": "BUY",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 279.67,
+    "exit_date": "2024-12-09",
+    "exit_reason": "Target hit",
+    "pnl_pct": 0.09998581360658661
+  },
+  {
+    "symbol": "WIPRO",
+    "entry": 286.4787292480469,
+    "entry_date": "2025-01-22",
+    "sl": 272.15,
+    "target": 315.13,
+    "votes": {
+      "breakout": "BUY",
+      "pullback": "HOLD",
+      "supertrend": "BUY",
+      "macd": "BUY",
+      "rsi_mean_reversion": "BUY"
+    },
+    "buy_votes": 4,
+    "exit_price": 278.89080810546875,
+    "exit_date": "2025-02-24",
+    "exit_reason": "Consensus SELL (4/5)",
+    "exit_votes": {
+      "breakout": "SELL",
+      "pullback": "SELL",
+      "supertrend": "BUY",
+      "macd": "SELL",
+      "rsi_mean_reversion": "SELL"
+    },
+    "sell_votes": 4,
+    "pnl_pct": -0.026486857025982347
+  }
+]

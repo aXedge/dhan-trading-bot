@@ -25,8 +25,8 @@ from utils import setup_logger, send_telegram, now_iso, load_json
 load_dotenv()
 logger = setup_logger(__name__, "eod.log")
 
-ALL_SESSIONS = ["A", "B", "C", "T"]
-SESSION_LABELS = {"A": "Conservative", "B": "Balanced", "C": "Aggressive", "T": "Tuned"}
+ALL_SESSIONS = ["A", "B", "C", "T", "V"]
+SESSION_LABELS = {"A": "Conservative", "B": "Balanced", "C": "Aggressive", "T": "Tuned", "V": "Consensus Voting"}
 
 
 def run():

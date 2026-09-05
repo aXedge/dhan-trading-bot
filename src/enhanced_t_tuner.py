@@ -245,7 +245,7 @@ def calc_metrics(trades):
 # Data fetching with caching
 # ---------------------------------------------------------------------------
 
-def fetch_stocks(symbols, start, end, cache_dir="/scratch/work/tuner_cache"):
+def fetch_stocks(symbols, start, end, cache_dir="/tmp/tuner_cache"):
     """Fetch stock data with local caching to avoid re-downloading."""
     os.makedirs(cache_dir, exist_ok=True)
     cache_key = f"{start}_{end}"
@@ -444,7 +444,7 @@ def phase_validate(best_config, start, end):
     # Fetch out-of-sample data
     print("Fetching out-of-sample data...")
     raw_data = fetch_stocks(OUT_OF_SAMPLE_BASKET, start, end,
-                            cache_dir="/scratch/work/tuner_cache_oos")
+                            cache_dir="/tmp/tuner_cache_oos")
 
     print(f"\nComputing indicators for {len(raw_data)} stocks...")
     all_trades = []
