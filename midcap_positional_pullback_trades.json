@@ -5,10 +5,10 @@
     "entry_date": "2024-07-16",
     "sl": 401.45,
     "target": 496.42,
-    "exit_price": 409.19122314453125,
-    "exit_date": "2024-07-19",
+    "exit_price": 424.80206298828125,
+    "exit_date": "2024-07-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0520714673283881
+    "pnl_pct": -0.015907542811290976
   },
   {
     "symbol": "TATAPOWER",
@@ -16,10 +16,10 @@
     "entry_date": "2024-07-29",
     "sl": 406.37,
     "target": 502.5,
-    "exit_price": 412.9457702636719,
-    "exit_date": "2024-08-08",
+    "exit_price": 425.1478576660156,
+    "exit_date": "2024-08-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05494626220523832
+    "pnl_pct": -0.02702097724319543
   },
   {
     "symbol": "TATAPOWER",
@@ -49,10 +49,10 @@
     "entry_date": "2024-10-08",
     "sl": 419.83,
     "target": 519.14,
-    "exit_price": 432.4592590332031,
-    "exit_date": "2024-10-23",
+    "exit_price": 430.6314392089844,
+    "exit_date": "2024-10-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04202234952750858
+    "pnl_pct": -0.046071310219451315
   },
   {
     "symbol": "TATAPOWER",
@@ -60,10 +60,10 @@
     "entry_date": "2024-11-06",
     "sl": 412.85,
     "target": 510.51,
-    "exit_price": 426.33349609375,
-    "exit_date": "2024-11-11",
+    "exit_price": 427.56854248046875,
+    "exit_date": "2024-11-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03961713641233951
+    "pnl_pct": -0.03683500130822909
   },
   {
     "symbol": "TATAPOWER",
@@ -71,10 +71,21 @@
     "entry_date": "2025-07-17",
     "sl": 382.14,
     "target": 472.54,
-    "exit_price": 386.90252685546875,
-    "exit_date": "2025-08-01",
+    "exit_price": 392.915283203125,
+    "exit_date": "2025-07-25",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05841094980458236
+    "pnl_pct": -0.04377794757412383
+  },
+  {
+    "symbol": "TATAPOWER",
+    "entry": 396.7415771484375,
+    "entry_date": "2025-07-28",
+    "sl": 368.97,
+    "target": 456.25,
+    "exit_price": 395.3005065917969,
+    "exit_date": "2025-07-31",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0036322650300436264
   },
   {
     "symbol": "PNB",
@@ -82,10 +93,10 @@
     "entry_date": "2024-07-31",
     "sl": 108.86,
     "target": 134.61,
-    "exit_price": 108.86,
-    "exit_date": "2024-08-05",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07001534277746246
+    "exit_price": 113.57093811035156,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.02977007212017892
   },
   {
     "symbol": "PNB",
@@ -93,10 +104,10 @@
     "entry_date": "2025-07-30",
     "sl": 97.69,
     "target": 120.8,
-    "exit_price": 100.26448822021484,
-    "exit_date": "2025-08-01",
+    "exit_price": 102.4023208618164,
+    "exit_date": "2025-07-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.045513391817958056
+    "pnl_pct": -0.025161892865892113
   },
   {
     "symbol": "IOC",
@@ -104,10 +115,10 @@
     "entry_date": "2024-08-05",
     "sl": 147.48,
     "target": 182.37,
-    "exit_price": 152.21429443359375,
-    "exit_date": "2024-08-14",
+    "exit_price": 152.5675506591797,
+    "exit_date": "2024-08-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.040154860476526194
+    "pnl_pct": -0.03792726895894375
   },
   {
     "symbol": "VEDL",
@@ -137,10 +148,21 @@
     "entry_date": "2024-09-09",
     "sl": 375.49,
     "target": 464.31,
+    "exit_price": 390.4965515136719,
+    "exit_date": "2024-09-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0328222964859266
+  },
+  {
+    "symbol": "VEDL",
+    "entry": 405.07830810546875,
+    "entry_date": "2024-09-12",
+    "sl": 376.72,
+    "target": 465.84,
     "exit_price": 460.14947509765625,
     "exit_date": "2024-09-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.13969332346991478
+    "pnl_pct": 0.13595190334864543
   },
   {
     "symbol": "VEDL",
@@ -149,7 +171,7 @@
     "sl": 404.27,
     "target": 499.91,
     "exit_price": 419.93511962890625,
-    "exit_date": "2024-11-08",
+    "exit_date": "2024-11-07",
     "exit_reason": "Signal exit",
     "pnl_pct": -0.03396624801376105
   },
@@ -159,10 +181,10 @@
     "entry_date": "2024-12-20",
     "sl": 407.04,
     "target": 503.33,
-    "exit_price": 431.5385437011719,
-    "exit_date": "2024-12-24",
+    "exit_price": 433.9665832519531,
+    "exit_date": "2024-12-23",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.014033680973788386
+    "pnl_pct": -0.008486169046344895
   },
   {
     "symbol": "VEDL",
@@ -170,10 +192,32 @@
     "entry_date": "2025-05-30",
     "sl": 378.27,
     "target": 467.76,
-    "exit_price": 416.6362609863281,
-    "exit_date": "2025-07-10",
+    "exit_price": 438.2623596191406,
+    "exit_date": "2025-06-11",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.02431956120709764
+    "pnl_pct": 0.07748832719434529
+  },
+  {
+    "symbol": "VEDL",
+    "entry": 426.30889892578125,
+    "entry_date": "2025-06-18",
+    "sl": 396.47,
+    "target": 490.26,
+    "exit_price": 410.4331970214844,
+    "exit_date": "2025-06-19",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03723990267221885
+  },
+  {
+    "symbol": "VEDL",
+    "entry": 417.53057861328125,
+    "entry_date": "2025-06-20",
+    "sl": 388.3,
+    "target": 480.16,
+    "exit_price": 418.1065979003906,
+    "exit_date": "2025-07-09",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.0013795858713449745
   },
   {
     "symbol": "VEDL",
@@ -181,10 +225,10 @@
     "entry_date": "2025-08-19",
     "sl": 397.18,
     "target": 491.13,
-    "exit_price": 413.74017333984375,
-    "exit_date": "2025-08-29",
+    "exit_price": 417.5269470214844,
+    "exit_date": "2025-08-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.031214853911248085
+    "pnl_pct": -0.0223480086524003
   },
   {
     "symbol": "BPCL",
@@ -214,10 +258,10 @@
     "entry_date": "2024-10-03",
     "sl": 298.61,
     "target": 369.25,
-    "exit_price": 311.1023254394531,
-    "exit_date": "2024-10-08",
+    "exit_price": 308.3410949707031,
+    "exit_date": "2024-10-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03110229567391998
+    "pnl_pct": -0.03970187736623934
   },
   {
     "symbol": "BPCL",
@@ -225,10 +269,10 @@
     "entry_date": "2024-10-09",
     "sl": 290.05,
     "target": 358.67,
-    "exit_price": 310.7801818847656,
-    "exit_date": "2024-10-11",
+    "exit_price": 308.7552795410156,
+    "exit_date": "2024-10-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0035413480665102584
+    "pnl_pct": -0.010033819521779066
   },
   {
     "symbol": "BPCL",
@@ -236,10 +280,10 @@
     "entry_date": "2024-10-15",
     "sl": 298.53,
     "target": 369.15,
-    "exit_price": 298.53,
-    "exit_date": "2024-10-22",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999098154039406
+    "exit_price": 305.2576599121094,
+    "exit_date": "2024-10-21",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0490323362069572
   },
   {
     "symbol": "BPCL",
@@ -269,10 +313,10 @@
     "entry_date": "2024-10-03",
     "sl": 616.8,
     "target": 762.7,
-    "exit_price": 616.8,
-    "exit_date": "2024-10-18",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999344297899505
+    "exit_price": 633.8677978515625,
+    "exit_date": "2024-10-17",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.044258741429283335
   },
   {
     "symbol": "SHRIRAMFIN",
@@ -302,10 +346,10 @@
     "entry_date": "2025-06-16",
     "sl": 618.72,
     "target": 765.08,
-    "exit_price": 648.0133056640625,
-    "exit_date": "2025-07-21",
+    "exit_price": 641.7247314453125,
+    "exit_date": "2025-06-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02596881335083407
+    "pnl_pct": -0.03542119242250057
   },
   {
     "symbol": "BAJAJFINSV",
@@ -313,10 +357,10 @@
     "entry_date": "2024-10-04",
     "sl": 1750.28,
     "target": 2164.33,
-    "exit_price": 1750.28,
-    "exit_date": "2024-10-22",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000240245538206
+    "exit_price": 1756.0452880859375,
+    "exit_date": "2024-10-21",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.06693906169328999
   },
   {
     "symbol": "BAJAJFINSV",
@@ -335,10 +379,10 @@
     "entry_date": "2025-02-11",
     "sl": 1620.54,
     "target": 2003.89,
-    "exit_price": 2003.89,
-    "exit_date": "2025-03-27",
-    "exit_reason": "Target hit",
-    "pnl_pct": 0.14999982696621553
+    "exit_price": 1942.4453125,
+    "exit_date": "2025-03-25",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.11473772176433653
   },
   {
     "symbol": "BAJAJFINSV",
@@ -357,10 +401,10 @@
     "entry_date": "2025-04-30",
     "sl": 1812.56,
     "target": 2241.33,
-    "exit_price": 1941.3966064453125,
-    "exit_date": "2025-06-05",
+    "exit_price": 1953.48046875,
+    "exit_date": "2025-06-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0038942516759105246
+    "pnl_pct": 0.0023058233956614444
   },
   {
     "symbol": "BAJAJFINSV",
@@ -368,10 +412,10 @@
     "entry_date": "2025-06-06",
     "sl": 1848.22,
     "target": 2285.44,
-    "exit_price": 1964.965087890625,
-    "exit_date": "2025-06-19",
+    "exit_price": 1978.74658203125,
+    "exit_date": "2025-06-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.011256277468483436
+    "pnl_pct": -0.004321616948242008
   },
   {
     "symbol": "BAJAJFINSV",
@@ -379,10 +423,10 @@
     "entry_date": "2025-08-18",
     "sl": 1852.37,
     "target": 2290.57,
-    "exit_price": 1956.8302001953125,
-    "exit_date": "2025-08-20",
+    "exit_price": 1970.5184326171875,
+    "exit_date": "2025-08-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.017557087838574518
+    "pnl_pct": -0.010684796659939256
   },
   {
     "symbol": "BAJAJFINSV",
@@ -390,10 +434,10 @@
     "entry_date": "2025-08-21",
     "sl": 1839.83,
     "target": 2275.06,
-    "exit_price": 1962.125732421875,
-    "exit_date": "2025-08-25",
+    "exit_price": 1964.223876953125,
+    "exit_date": "2025-08-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.00818180253136876
+    "pnl_pct": -0.0071212293516651
   },
   {
     "symbol": "DMART",
@@ -401,10 +445,32 @@
     "entry_date": "2024-07-31",
     "sl": 4590.43,
     "target": 5676.34,
+    "exit_price": 4817.4501953125,
+    "exit_date": "2024-08-05",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.024007535593153943
+  },
+  {
+    "symbol": "DMART",
+    "entry": 4909.89990234375,
+    "entry_date": "2024-08-06",
+    "sl": 4566.21,
+    "target": 5646.38,
+    "exit_price": 4901.5,
+    "exit_date": "2024-08-23",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0017108092854887511
+  },
+  {
+    "symbol": "DMART",
+    "entry": 4959.39990234375,
+    "entry_date": "2024-08-26",
+    "sl": 4612.24,
+    "target": 5703.31,
     "exit_price": 5342.5,
     "exit_date": "2024-09-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.08236505406265772
+    "pnl_pct": 0.07724726886315453
   },
   {
     "symbol": "DMART",
@@ -412,10 +478,10 @@
     "entry_date": "2024-09-25",
     "sl": 4896.91,
     "target": 6055.32,
-    "exit_price": 4954.35009765625,
-    "exit_date": "2024-10-01",
+    "exit_price": 5096.2998046875,
+    "exit_date": "2024-09-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.059092185422799356
+    "pnl_pct": -0.03213373759614471
   },
   {
     "symbol": "JINDALSTEL",
@@ -423,10 +489,10 @@
     "entry_date": "2024-09-11",
     "sl": 895.83,
     "target": 1107.75,
-    "exit_price": 1048.7877197265625,
-    "exit_date": "2024-09-17",
+    "exit_price": 1039.1739501953125,
+    "exit_date": "2024-09-16",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.0887890202447538
+    "pnl_pct": 0.07880857662217058
   },
   {
     "symbol": "JINDALSTEL",
@@ -434,10 +500,10 @@
     "entry_date": "2024-09-19",
     "sl": 929.09,
     "target": 1148.88,
-    "exit_price": 965.0540161132812,
-    "exit_date": "2024-10-15",
+    "exit_price": 1037.6298828125,
+    "exit_date": "2024-09-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.034004751700203985
+    "pnl_pct": 0.03864189937021155
   },
   {
     "symbol": "JINDALSTEL",
@@ -445,10 +511,10 @@
     "entry_date": "2024-12-24",
     "sl": 873.41,
     "target": 1080.02,
-    "exit_price": 914.8436889648438,
-    "exit_date": "2024-12-30",
+    "exit_price": 920.0739135742188,
+    "exit_date": "2024-12-27",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.025883105444937382
+    "pnl_pct": -0.02031401182187843
   },
   {
     "symbol": "JINDALSTEL",
@@ -456,10 +522,10 @@
     "entry_date": "2025-01-08",
     "sl": 873.27,
     "target": 1079.85,
-    "exit_price": 914.2459106445312,
-    "exit_date": "2025-01-10",
+    "exit_price": 928.0438232421875,
+    "exit_date": "2025-01-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.026364650659116265
+    "pnl_pct": -0.011670425291760633
   },
   {
     "symbol": "JINDALSTEL",
@@ -467,10 +533,10 @@
     "entry_date": "2025-06-11",
     "sl": 884.85,
     "target": 1094.17,
-    "exit_price": 919.1275024414062,
-    "exit_date": "2025-06-16",
+    "exit_price": 917.2844848632812,
+    "exit_date": "2025-06-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.033977233683699495
+    "pnl_pct": -0.035914284783205006
   },
   {
     "symbol": "JINDALSTEL",
@@ -478,10 +544,32 @@
     "entry_date": "2025-06-26",
     "sl": 884.71,
     "target": 1094.0,
-    "exit_price": 944.109375,
-    "exit_date": "2025-08-29",
+    "exit_price": 927.9441528320312,
+    "exit_date": "2025-07-16",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.007564962768018395
+    "pnl_pct": -0.02455762621247505
+  },
+  {
+    "symbol": "JINDALSTEL",
+    "entry": 946.8726806640625,
+    "entry_date": "2025-07-17",
+    "sl": 880.59,
+    "target": 1088.9,
+    "exit_price": 941.9412841796875,
+    "exit_date": "2025-08-01",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.005208088252072606
+  },
+  {
+    "symbol": "JINDALSTEL",
+    "entry": 976.5107421875,
+    "entry_date": "2025-08-04",
+    "sl": 908.15,
+    "target": 1122.99,
+    "exit_price": 962.9756469726562,
+    "exit_date": "2025-08-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.013860672115622127
   },
   {
     "symbol": "SBILIFE",
@@ -500,10 +588,21 @@
     "entry_date": "2025-06-03",
     "sl": 1648.74,
     "target": 2038.76,
-    "exit_price": 1814.2779541015625,
-    "exit_date": "2025-08-28",
+    "exit_price": 1854.222412109375,
+    "exit_date": "2025-07-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.023376326312296664
+    "pnl_pct": 0.04590772101957238
+  },
+  {
+    "symbol": "SBILIFE",
+    "entry": 1829.556640625,
+    "entry_date": "2025-07-25",
+    "sl": 1701.49,
+    "target": 2103.99,
+    "exit_price": 1814.078125,
+    "exit_date": "2025-08-26",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.008460254949916358
   },
   {
     "symbol": "PFC",
@@ -511,10 +610,10 @@
     "entry_date": "2024-07-23",
     "sl": 441.39,
     "target": 545.8,
-    "exit_price": 441.39,
-    "exit_date": "2024-08-06",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999529900809781
+    "exit_price": 453.65423583984375,
+    "exit_date": "2024-08-05",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.04415466604149668
   },
   {
     "symbol": "PFC",
@@ -522,10 +621,10 @@
     "entry_date": "2024-09-09",
     "sl": 446.16,
     "target": 551.7,
-    "exit_price": 459.3984680175781,
-    "exit_date": "2024-09-11",
+    "exit_price": 467.9651794433594,
+    "exit_date": "2024-09-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04239876372138286
+    "pnl_pct": -0.0245417310508769
   },
   {
     "symbol": "PFC",
@@ -544,10 +643,10 @@
     "entry_date": "2024-09-06",
     "sl": 513.82,
     "target": 635.37,
-    "exit_price": 513.82,
-    "exit_date": "2024-09-11",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.0700046320656261
+    "exit_price": 524.9384155273438,
+    "exit_date": "2024-09-10",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.049880707463237604
   },
   {
     "symbol": "RECLTD",
@@ -555,10 +654,10 @@
     "entry_date": "2025-01-03",
     "sl": 458.59,
     "target": 567.07,
-    "exit_price": 472.3944091796875,
-    "exit_date": "2025-01-07",
+    "exit_price": 469.7366943359375,
+    "exit_date": "2025-01-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.042003589650503256
+    "pnl_pct": -0.0473933259186914
   },
   {
     "symbol": "NHPC",
@@ -566,10 +665,10 @@
     "entry_date": "2024-07-23",
     "sl": 91.7,
     "target": 113.4,
-    "exit_price": 96.9051742553711,
-    "exit_date": "2024-07-25",
+    "exit_price": 97.30435180664062,
+    "exit_date": "2024-07-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.01725299047347287
+    "pnl_pct": -0.013204800603379214
   },
   {
     "symbol": "NHPC",
@@ -577,10 +676,21 @@
     "entry_date": "2025-05-20",
     "sl": 78.43,
     "target": 96.98,
-    "exit_price": 80.35991668701172,
-    "exit_date": "2025-06-18",
+    "exit_price": 84.79027557373047,
+    "exit_date": "2025-05-29",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04710771024260138
+    "pnl_pct": 0.005426625257709062
+  },
+  {
+    "symbol": "NHPC",
+    "entry": 85.3258056640625,
+    "entry_date": "2025-06-05",
+    "sl": 79.35,
+    "target": 98.12,
+    "exit_price": 82.8331298828125,
+    "exit_date": "2025-06-17",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.029213621387461034
   },
   {
     "symbol": "NHPC",
@@ -589,7 +699,7 @@
     "sl": 77.16,
     "target": 95.41,
     "exit_price": 82.73575592041016,
-    "exit_date": "2025-07-03",
+    "exit_date": "2025-06-25",
     "exit_reason": "Signal exit",
     "pnl_pct": -0.0028165592349625574
   },
@@ -599,10 +709,10 @@
     "entry_date": "2025-07-18",
     "sl": 78.81,
     "target": 97.45,
-    "exit_price": 81.28494262695312,
-    "exit_date": "2025-07-25",
+    "exit_price": 83.58287811279297,
+    "exit_date": "2025-07-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04079047468995476
+    "pnl_pct": -0.01367350154178577
   },
   {
     "symbol": "NHPC",
@@ -610,10 +720,10 @@
     "entry_date": "2025-08-13",
     "sl": 77.07,
     "target": 95.3,
-    "exit_price": 81.08924102783203,
-    "exit_date": "2025-08-18",
+    "exit_price": 80.63864135742188,
+    "exit_date": "2025-08-14",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.021513119476894618
+    "pnl_pct": -0.026950411283745323
   },
   {
     "symbol": "TATAINVEST",
@@ -621,10 +731,10 @@
     "entry_date": "2024-09-27",
     "sl": 630.52,
     "target": 779.67,
-    "exit_price": 657.163330078125,
-    "exit_date": "2024-10-04",
+    "exit_price": 661.8952026367188,
+    "exit_date": "2024-10-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03069529187494514
+    "pnl_pct": -0.02371586052300497
   },
   {
     "symbol": "TATAINVEST",
@@ -632,10 +742,10 @@
     "entry_date": "2024-10-10",
     "sl": 638.05,
     "target": 788.99,
-    "exit_price": 664.9078369140625,
-    "exit_date": "2024-10-24",
+    "exit_price": 670.2294311523438,
+    "exit_date": "2024-10-23",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03085980928118859
+    "pnl_pct": -0.02310328940175364
   },
   {
     "symbol": "TATAINVEST",
@@ -643,10 +753,10 @@
     "entry_date": "2024-11-11",
     "sl": 633.29,
     "target": 783.11,
-    "exit_price": 655.1566162109375,
-    "exit_date": "2024-11-14",
+    "exit_price": 656.0831298828125,
+    "exit_date": "2024-11-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03789501649027918
+    "pnl_pct": -0.03653442056719103
   },
   {
     "symbol": "TATAINVEST",
@@ -665,10 +775,10 @@
     "entry_date": "2024-12-24",
     "sl": 626.58,
     "target": 774.8,
-    "exit_price": 662.4055786132812,
-    "exit_date": "2025-01-07",
+    "exit_price": 668.9509887695312,
+    "exit_date": "2024-12-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.016819472546805436
+    "pnl_pct": -0.007104397647690835
   },
   {
     "symbol": "TATAINVEST",
@@ -687,10 +797,10 @@
     "entry_date": "2024-07-15",
     "sl": 1310.6,
     "target": 1620.63,
-    "exit_price": 1331.973876953125,
-    "exit_date": "2024-08-06",
+    "exit_price": 1343.44482421875,
+    "exit_date": "2024-08-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05483198117898158
+    "pnl_pct": -0.046692202547697875
   },
   {
     "symbol": "CHOLAFIN",
@@ -709,10 +819,10 @@
     "entry_date": "2024-10-08",
     "sl": 1420.18,
     "target": 1756.14,
-    "exit_price": 1452.8675537109375,
-    "exit_date": "2024-10-17",
+    "exit_price": 1481.4449462890625,
+    "exit_date": "2024-10-16",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04859713155243559
+    "pnl_pct": -0.029883372543822128
   },
   {
     "symbol": "CHOLAFIN",
@@ -720,10 +830,10 @@
     "entry_date": "2025-02-28",
     "sl": 1300.63,
     "target": 1608.3,
-    "exit_price": 1536.055419921875,
-    "exit_date": "2025-03-21",
+    "exit_price": 1510.8455810546875,
+    "exit_date": "2025-03-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.09834017808426869
+    "pnl_pct": 0.08031414949718117
   },
   {
     "symbol": "CHOLAFIN",
@@ -742,10 +852,10 @@
     "entry_date": "2025-05-30",
     "sl": 1486.56,
     "target": 1838.22,
-    "exit_price": 1509.1981201171875,
-    "exit_date": "2025-06-05",
+    "exit_price": 1510.29638671875,
+    "exit_date": "2025-06-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05584009288748481
+    "pnl_pct": -0.055153013253145276
   },
   {
     "symbol": "CHOLAFIN",
@@ -753,10 +863,10 @@
     "entry_date": "2025-06-06",
     "sl": 1479.32,
     "target": 1829.27,
-    "exit_price": 1555.0252685546875,
-    "exit_date": "2025-06-20",
+    "exit_price": 1551.3311767578125,
+    "exit_date": "2025-06-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.022407679186073316
+    "pnl_pct": -0.024730031012782375
   },
   {
     "symbol": "LICI",
@@ -775,10 +885,10 @@
     "entry_date": "2024-08-27",
     "sl": 483.89,
     "target": 598.36,
-    "exit_price": 510.4089050292969,
-    "exit_date": "2024-09-02",
+    "exit_price": 513.1331176757812,
+    "exit_date": "2024-08-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.019042796746510243
+    "pnl_pct": -0.013807120032347681
   },
   {
     "symbol": "LICI",
@@ -786,10 +896,10 @@
     "entry_date": "2025-08-08",
     "sl": 414.8,
     "target": 512.92,
-    "exit_price": 433.7083740234375,
-    "exit_date": "2025-08-14",
+    "exit_price": 433.5862121582031,
+    "exit_date": "2025-08-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.027602815046496875
+    "pnl_pct": -0.027876708429648744
   },
   {
     "symbol": "TVSMOTOR",
@@ -808,10 +918,10 @@
     "entry_date": "2024-09-20",
     "sl": 2598.61,
     "target": 3213.34,
-    "exit_price": 2927.287109375,
-    "exit_date": "2024-09-27",
+    "exit_price": 2869.13232421875,
+    "exit_date": "2024-09-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.04762750208211956
+    "pnl_pct": 0.02681486907723047
   },
   {
     "symbol": "TVSMOTOR",
@@ -819,10 +929,10 @@
     "entry_date": "2024-09-30",
     "sl": 2620.99,
     "target": 3241.01,
-    "exit_price": 2620.99,
-    "exit_date": "2024-10-07",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000104126583281
+    "exit_price": 2667.079345703125,
+    "exit_date": "2024-10-04",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05364728046833053
   },
   {
     "symbol": "TVSMOTOR",
@@ -830,10 +940,10 @@
     "entry_date": "2024-10-08",
     "sl": 2529.35,
     "target": 3127.68,
-    "exit_price": 2695.263427734375,
-    "exit_date": "2024-10-18",
+    "exit_price": 2658.891845703125,
+    "exit_date": "2024-10-17",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.008994525851799974
+    "pnl_pct": -0.02236777780390984
   },
   {
     "symbol": "TVSMOTOR",
@@ -841,10 +951,10 @@
     "entry_date": "2025-01-02",
     "sl": 2308.67,
     "target": 2854.81,
-    "exit_price": 2395.5087890625,
-    "exit_date": "2025-01-06",
+    "exit_price": 2464.08349609375,
+    "exit_date": "2025-01-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03501966495762674
+    "pnl_pct": -0.007395786444392146
   },
   {
     "symbol": "TVSMOTOR",
@@ -863,10 +973,32 @@
     "entry_date": "2025-07-14",
     "sl": 2596.97,
     "target": 3211.31,
-    "exit_price": 3009.780029296875,
-    "exit_date": "2025-08-14",
+    "exit_price": 2764.736328125,
+    "exit_date": "2025-07-25",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.07783179539619046
+    "pnl_pct": -0.009920761207193811
+  },
+  {
+    "symbol": "TVSMOTOR",
+    "entry": 2789.151123046875,
+    "entry_date": "2025-07-28",
+    "sl": 2593.91,
+    "target": 3207.52,
+    "exit_price": 2783.86962890625,
+    "exit_date": "2025-07-30",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0018935847889287132
+  },
+  {
+    "symbol": "TVSMOTOR",
+    "entry": 2792.041015625,
+    "entry_date": "2025-07-31",
+    "sl": 2596.6,
+    "target": 3210.85,
+    "exit_price": 2970.816162109375,
+    "exit_date": "2025-08-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.06403027229324426
   },
   {
     "symbol": "MOTHERSON",
@@ -896,10 +1028,10 @@
     "entry_date": "2024-09-30",
     "sl": 4444.82,
     "target": 5496.28,
-    "exit_price": 4477.63330078125,
-    "exit_date": "2024-10-07",
+    "exit_price": 4601.57373046875,
+    "exit_date": "2024-10-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.06313384634104255
+    "pnl_pct": -0.03720148747103259
   },
   {
     "symbol": "INDIGO",
@@ -907,10 +1039,10 @@
     "entry_date": "2024-10-09",
     "sl": 4371.33,
     "target": 5405.41,
-    "exit_price": 4655.18310546875,
-    "exit_date": "2024-10-18",
+    "exit_price": 4616.19921875,
+    "exit_date": "2024-10-17",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.009610620038997209
+    "pnl_pct": -0.017904435023524023
   },
   {
     "symbol": "INDIGO",
@@ -918,10 +1050,10 @@
     "entry_date": "2024-12-20",
     "sl": 4081.01,
     "target": 5046.41,
-    "exit_price": 4717.02880859375,
-    "exit_date": "2024-12-26",
+    "exit_price": 4604.46875,
+    "exit_date": "2024-12-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.07493856126881912
+    "pnl_pct": 0.04928784927387354
   },
   {
     "symbol": "INDIGO",
@@ -951,10 +1083,10 @@
     "entry_date": "2025-07-17",
     "sl": 5381.65,
     "target": 6654.73,
-    "exit_price": 5646.0,
-    "exit_date": "2025-08-29",
+    "exit_price": 5727.0,
+    "exit_date": "2025-08-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02431794910306589
+    "pnl_pct": -0.010320385142270343
   },
   {
     "symbol": "BANKBARODA",
@@ -962,10 +1094,10 @@
     "entry_date": "2024-08-20",
     "sl": 221.5,
     "target": 273.9,
-    "exit_price": 235.41055297851562,
-    "exit_date": "2024-08-26",
+    "exit_price": 237.28335571289062,
+    "exit_date": "2024-08-21",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.011598253355681265
+    "pnl_pct": -0.0037350481154920442
   },
   {
     "symbol": "BANKBARODA",
@@ -973,10 +1105,10 @@
     "entry_date": "2024-10-08",
     "sl": 215.31,
     "target": 266.24,
-    "exit_price": 230.4008331298828,
-    "exit_date": "2024-10-10",
+    "exit_price": 230.65365600585938,
+    "exit_date": "2024-10-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.004813157316650955
+    "pnl_pct": -0.0037211213362107177
   },
   {
     "symbol": "BANKBARODA",
@@ -984,10 +1116,10 @@
     "entry_date": "2024-11-25",
     "sl": 215.19,
     "target": 266.09,
-    "exit_price": 230.73794555664062,
-    "exit_date": "2024-12-02",
+    "exit_price": 230.775390625,
+    "exit_date": "2024-11-27",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0027923398763583583
+    "pnl_pct": -0.0026305090647346326
   },
   {
     "symbol": "BANKBARODA",
@@ -995,10 +1127,10 @@
     "entry_date": "2024-12-03",
     "sl": 221.68,
     "target": 274.11,
-    "exit_price": 244.1846160888672,
-    "exit_date": "2024-12-11",
+    "exit_price": 246.2072296142578,
+    "exit_date": "2024-12-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.024435228180003862
+    "pnl_pct": 0.032920760895338484
   },
   {
     "symbol": "BANKBARODA",
@@ -1006,10 +1138,10 @@
     "entry_date": "2025-07-02",
     "sl": 218.95,
     "target": 270.75,
-    "exit_price": 227.7632293701172,
-    "exit_date": "2025-08-01",
+    "exit_price": 230.41737365722656,
+    "exit_date": "2025-07-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0325858807630124
+    "pnl_pct": -0.021312521735996962
   },
   {
     "symbol": "BANKBARODA",
@@ -1017,10 +1149,10 @@
     "entry_date": "2025-08-25",
     "sl": 217.18,
     "target": 268.56,
-    "exit_price": 225.9324493408203,
-    "exit_date": "2025-08-28",
+    "exit_price": 227.77291870117188,
+    "exit_date": "2025-08-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.032520293329773575
+    "pnl_pct": -0.02463910246018583
   },
   {
     "symbol": "HINDPETRO",
@@ -1050,10 +1182,10 @@
     "entry_date": "2024-10-03",
     "sl": 354.02,
     "target": 437.77,
-    "exit_price": 354.02,
-    "exit_date": "2024-10-08",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000019881850505
+    "exit_price": 361.03955078125,
+    "exit_date": "2024-10-07",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0515600518467353
   },
   {
     "symbol": "HINDPETRO",
@@ -1061,10 +1193,10 @@
     "entry_date": "2024-12-30",
     "sl": 346.13,
     "target": 428.01,
-    "exit_price": 354.2066955566406,
-    "exit_date": "2025-01-07",
+    "exit_price": 356.72894287109375,
+    "exit_date": "2025-01-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.048299674319450314
+    "pnl_pct": -0.04152277365460085
   },
   {
     "symbol": "HINDPETRO",
@@ -1083,10 +1215,21 @@
     "entry_date": "2025-06-16",
     "sl": 337.22,
     "target": 416.99,
+    "exit_price": 357.6919250488281,
+    "exit_date": "2025-06-19",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.013532312682555893
+  },
+  {
+    "symbol": "HINDPETRO",
+    "entry": 359.7555236816406,
+    "entry_date": "2025-06-20",
+    "sl": 334.57,
+    "target": 413.72,
     "exit_price": 400.38568115234375,
     "exit_date": "2025-07-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.10421149951164128
+    "pnl_pct": 0.11293824499177968
   },
   {
     "symbol": "MAXHEALTH",
@@ -1105,10 +1248,21 @@
     "entry_date": "2024-09-02",
     "sl": 817.81,
     "target": 1011.28,
-    "exit_price": 874.4351196289062,
-    "exit_date": "2024-09-11",
+    "exit_price": 869.2503051757812,
+    "exit_date": "2024-09-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.005612589847489614
+    "pnl_pct": -0.011508641024336515
+  },
+  {
+    "symbol": "MAXHEALTH",
+    "entry": 878.5730590820312,
+    "entry_date": "2024-09-04",
+    "sl": 817.07,
+    "target": 1010.36,
+    "exit_price": 876.1799926757812,
+    "exit_date": "2024-09-10",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.002723810366721662
   },
   {
     "symbol": "MAXHEALTH",
@@ -1116,10 +1270,21 @@
     "entry_date": "2024-10-03",
     "sl": 873.64,
     "target": 1080.3,
-    "exit_price": 911.5263671875,
-    "exit_date": "2024-10-23",
+    "exit_price": 913.7199096679688,
+    "exit_date": "2024-10-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029666217530950795
+    "pnl_pct": -0.027331157955387295
+  },
+  {
+    "symbol": "MAXHEALTH",
+    "entry": 953.0545043945312,
+    "entry_date": "2024-10-08",
+    "sl": 886.34,
+    "target": 1096.01,
+    "exit_price": 920.5000610351562,
+    "exit_date": "2024-10-22",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03415800797254152
   },
   {
     "symbol": "MAXHEALTH",
@@ -1127,10 +1292,21 @@
     "entry_date": "2024-11-18",
     "sl": 927.14,
     "target": 1146.46,
-    "exit_price": 1128.888671875,
-    "exit_date": "2024-12-11",
+    "exit_price": 968.9080200195312,
+    "exit_date": "2024-11-25",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.13236982442116976
+    "pnl_pct": -0.028104159564755715
+  },
+  {
+    "symbol": "MAXHEALTH",
+    "entry": 1003.2074584960938,
+    "entry_date": "2024-11-27",
+    "sl": 932.98,
+    "target": 1153.69,
+    "exit_price": 973.9930419921875,
+    "exit_date": "2024-11-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.02912101206633922
   },
   {
     "symbol": "MAXHEALTH",
@@ -1138,10 +1314,10 @@
     "entry_date": "2025-04-07",
     "sl": 997.29,
     "target": 1233.21,
-    "exit_price": 1233.21,
-    "exit_date": "2025-06-13",
-    "exit_reason": "Target hit",
-    "pnl_pct": 0.1500020455952597
+    "exit_price": 1064.2783203125,
+    "exit_date": "2025-04-25",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.007531364940227525
   },
   {
     "symbol": "MAXHEALTH",
@@ -1160,10 +1336,10 @@
     "entry_date": "2025-07-11",
     "sl": 1131.84,
     "target": 1399.59,
-    "exit_price": 1209.4505615234375,
-    "exit_date": "2025-08-18",
+    "exit_price": 1218.534423828125,
+    "exit_date": "2025-08-14",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.006233620810016642
+    "pnl_pct": 0.0012302948214076514
   },
   {
     "symbol": "UPL",
@@ -1171,10 +1347,10 @@
     "entry_date": "2024-09-19",
     "sl": 542.89,
     "target": 671.32,
-    "exit_price": 566.0897827148438,
-    "exit_date": "2024-10-08",
+    "exit_price": 569.5247802734375,
+    "exit_date": "2024-10-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03026227563454786
+    "pnl_pct": -0.024377967495834228
   },
   {
     "symbol": "UPL",
@@ -1182,10 +1358,10 @@
     "entry_date": "2024-11-06",
     "sl": 517.75,
     "target": 640.22,
-    "exit_price": 547.2462768554688,
-    "exit_date": "2024-11-08",
+    "exit_price": 556.6190185546875,
+    "exit_date": "2024-11-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.017011917112703705
+    "pnl_pct": -0.000176181934653057
   },
   {
     "symbol": "UPL",
@@ -1193,10 +1369,10 @@
     "entry_date": "2025-02-28",
     "sl": 577.71,
     "target": 714.38,
-    "exit_price": 603.0897827148438,
-    "exit_date": "2025-04-08",
+    "exit_price": 603.040771484375,
+    "exit_date": "2025-04-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029149232709370834
+    "pnl_pct": -0.029228130730975924
   },
   {
     "symbol": "UPL",
@@ -1204,10 +1380,10 @@
     "entry_date": "2025-05-08",
     "sl": 599.21,
     "target": 740.96,
-    "exit_price": 625.0738525390625,
-    "exit_date": "2025-05-14",
+    "exit_price": 630.913330078125,
+    "exit_date": "2025-05-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029855327217470695
+    "pnl_pct": -0.020792177313914795
   },
   {
     "symbol": "UPL",
@@ -1237,10 +1413,10 @@
     "entry_date": "2024-09-13",
     "sl": 2731.09,
     "target": 3377.15,
-    "exit_price": 2842.46044921875,
-    "exit_date": "2024-09-17",
+    "exit_price": 2824.845458984375,
+    "exit_date": "2024-09-16",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.032075546990740354
+    "pnl_pct": -0.0380738643260113
   },
   {
     "symbol": "GODREJPROP",
@@ -1248,10 +1424,10 @@
     "entry_date": "2024-12-13",
     "sl": 2708.97,
     "target": 3349.8,
-    "exit_price": 2873.51025390625,
-    "exit_date": "2024-12-23",
+    "exit_price": 2842.21142578125,
+    "exit_date": "2024-12-20",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.013512399007770941
+    "pnl_pct": -0.024257412299067412
   },
   {
     "symbol": "AMBUJACEM",
@@ -1259,10 +1435,10 @@
     "entry_date": "2024-07-23",
     "sl": 637.46,
     "target": 788.25,
-    "exit_price": 637.46,
-    "exit_date": "2024-08-05",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999279085207565
+    "exit_price": 647.2153930664062,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.055760390576247425
   },
   {
     "symbol": "AMBUJACEM",
@@ -1270,10 +1446,10 @@
     "entry_date": "2024-09-27",
     "sl": 584.58,
     "target": 722.86,
-    "exit_price": 605.4755859375,
-    "exit_date": "2024-10-04",
+    "exit_price": 612.1678466796875,
+    "exit_date": "2024-10-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03675074837892904
+    "pnl_pct": -0.026104051300988397
   },
   {
     "symbol": "AMBUJACEM",
@@ -1281,10 +1457,10 @@
     "entry_date": "2025-07-31",
     "sl": 548.5,
     "target": 678.25,
-    "exit_price": 575.2028198242188,
-    "exit_date": "2025-08-14",
+    "exit_price": 577.1431884765625,
+    "exit_date": "2025-08-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02471745996855831
+    "pnl_pct": -0.02142747667460729
   },
   {
     "symbol": "AMBUJACEM",
@@ -1292,10 +1468,10 @@
     "entry_date": "2025-08-18",
     "sl": 546.04,
     "target": 675.22,
-    "exit_price": 578.1383056640625,
-    "exit_date": "2025-08-25",
+    "exit_price": 574.3072509765625,
+    "exit_date": "2025-08-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.015337593591192796
+    "pnl_pct": -0.021862495142811224
   },
   {
     "symbol": "MRF",
@@ -1303,10 +1479,32 @@
     "entry_date": "2024-07-22",
     "sl": 121226.38,
     "target": 149903.59,
-    "exit_price": 133968.375,
-    "exit_date": "2024-09-03",
+    "exit_price": 138787.75,
+    "exit_date": "2024-07-29",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.0277514649305202
+    "pnl_pct": 0.06472377064296558
+  },
+  {
+    "symbol": "MRF",
+    "entry": 136825.28125,
+    "entry_date": "2024-08-12",
+    "sl": 127247.51,
+    "target": 157349.07,
+    "exit_price": 133970.46875,
+    "exit_date": "2024-08-29",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.020864656545334162
+  },
+  {
+    "symbol": "MRF",
+    "entry": 134381.453125,
+    "entry_date": "2024-08-30",
+    "sl": 124974.75,
+    "target": 154538.67,
+    "exit_price": 133745.390625,
+    "exit_date": "2024-09-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.004733261065486041
   },
   {
     "symbol": "MRF",
@@ -1314,10 +1512,10 @@
     "entry_date": "2024-09-30",
     "sl": 128385.85,
     "target": 158756.69,
-    "exit_price": 130797.875,
-    "exit_date": "2024-10-07",
+    "exit_price": 132961.515625,
+    "exit_date": "2024-10-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.052527771159645756
+    "pnl_pct": -0.03685481465803373
   },
   {
     "symbol": "MRF",
@@ -1325,10 +1523,10 @@
     "entry_date": "2025-05-29",
     "sl": 130609.16,
     "target": 161505.95,
-    "exit_price": 147790.609375,
-    "exit_date": "2025-07-10",
+    "exit_price": 150217.59375,
+    "exit_date": "2025-07-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.05234020723047005
+    "pnl_pct": 0.06962150305118169
   },
   {
     "symbol": "MRF",
@@ -1336,10 +1534,10 @@
     "entry_date": "2025-08-18",
     "sl": 134159.47,
     "target": 165896.12,
-    "exit_price": 142021.484375,
-    "exit_date": "2025-08-28",
+    "exit_price": 142126.28125,
+    "exit_date": "2025-08-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.015500168968684471
+    "pnl_pct": -0.01477371193872069
   },
   {
     "symbol": "PAGEIND",
@@ -1347,10 +1545,10 @@
     "entry_date": "2024-08-05",
     "sl": 37008.5,
     "target": 45763.19,
-    "exit_price": 39012.71484375,
-    "exit_date": "2024-09-09",
+    "exit_price": 39055.57421875,
+    "exit_date": "2024-09-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.019635261014097474
+    "pnl_pct": -0.018558232149193825
   },
   {
     "symbol": "PAGEIND",
@@ -1358,10 +1556,10 @@
     "entry_date": "2024-09-11",
     "sl": 37638.12,
     "target": 46541.76,
-    "exit_price": 40079.9140625,
-    "exit_date": "2024-10-07",
+    "exit_price": 40051.4609375,
+    "exit_date": "2024-10-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.009665656429164334
+    "pnl_pct": -0.010368704515182518
   },
   {
     "symbol": "PAGEIND",
@@ -1369,10 +1567,10 @@
     "entry_date": "2024-11-19",
     "sl": 40363.26,
     "target": 49911.56,
-    "exit_price": 45788.1171875,
-    "exit_date": "2024-12-11",
+    "exit_price": 44874.58984375,
+    "exit_date": "2024-12-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.05499269716134323
+    "pnl_pct": 0.033944339301008354
   },
   {
     "symbol": "PAGEIND",
@@ -1380,10 +1578,10 @@
     "entry_date": "2024-12-30",
     "sl": 42533.55,
     "target": 52595.25,
-    "exit_price": 45215.6171875,
-    "exit_date": "2025-01-14",
+    "exit_price": 44670.8515625,
+    "exit_date": "2025-01-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.011356268735332345
+    "pnl_pct": -0.023267620468768832
   },
   {
     "symbol": "PAGEIND",
@@ -1391,10 +1589,10 @@
     "entry_date": "2025-02-01",
     "sl": 42142.14,
     "target": 52111.25,
-    "exit_price": 42802.34375,
-    "exit_date": "2025-02-06",
+    "exit_price": 44557.5390625,
+    "exit_date": "2025-02-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.055430588794300344
+    "pnl_pct": -0.016696639724534064
   },
   {
     "symbol": "PAGEIND",
@@ -1413,10 +1611,10 @@
     "entry_date": "2025-05-14",
     "sl": 42151.97,
     "target": 52123.4,
-    "exit_price": 44001.95703125,
-    "exit_date": "2025-06-19",
+    "exit_price": 44305.92578125,
+    "exit_date": "2025-06-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029183694769072087
+    "pnl_pct": -0.022477224450693147
   },
   {
     "symbol": "PAGEIND",
@@ -1424,10 +1622,10 @@
     "entry_date": "2025-06-24",
     "sl": 42193.93,
     "target": 52175.28,
-    "exit_price": 45820.86328125,
-    "exit_date": "2025-07-21",
+    "exit_price": 48012.3828125,
+    "exit_date": "2025-07-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.009941649665182108
+    "pnl_pct": 0.058245123065033606
   },
   {
     "symbol": "PAGEIND",
@@ -1435,10 +1633,10 @@
     "entry_date": "2025-07-29",
     "sl": 43055.68,
     "target": 53240.89,
-    "exit_price": 45364.91015625,
-    "exit_date": "2025-08-04",
+    "exit_price": 45899.30859375,
+    "exit_date": "2025-08-01",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.020120763902049008
+    "pnl_pct": -0.008577790910239939
   },
   {
     "symbol": "PAGEIND",
@@ -1446,10 +1644,10 @@
     "entry_date": "2025-08-25",
     "sl": 42868.71,
     "target": 53009.69,
-    "exit_price": 43438.87890625,
-    "exit_date": "2025-08-28",
+    "exit_price": 44772.05078125,
+    "exit_date": "2025-08-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.057630665487386504
+    "pnl_pct": -0.02870864161687818
   },
   {
     "symbol": "DABUR",
@@ -1457,10 +1655,10 @@
     "entry_date": "2024-07-30",
     "sl": 570.22,
     "target": 705.11,
-    "exit_price": 584.6092529296875,
-    "exit_date": "2024-08-14",
+    "exit_price": 586.0116577148438,
+    "exit_date": "2024-08-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04653714839069066
+    "pnl_pct": -0.04424990976272724
   },
   {
     "symbol": "DABUR",
@@ -1479,10 +1677,10 @@
     "entry_date": "2024-09-13",
     "sl": 594.51,
     "target": 735.15,
-    "exit_price": 605.2601318359375,
-    "exit_date": "2024-09-26",
+    "exit_price": 645.6913452148438,
+    "exit_date": "2024-09-20",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05318503952118952
+    "pnl_pct": 0.010061944187025272
   },
   {
     "symbol": "COLPAL",
@@ -1490,10 +1688,10 @@
     "entry_date": "2024-09-19",
     "sl": 3213.2,
     "target": 3973.31,
-    "exit_price": 3683.414306640625,
-    "exit_date": "2024-10-03",
+    "exit_price": 3666.187255859375,
+    "exit_date": "2024-10-01",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.06609458333548263
+    "pnl_pct": 0.06110853941106569
   },
   {
     "symbol": "SIEMENS",
@@ -1501,10 +1699,10 @@
     "entry_date": "2024-10-22",
     "sl": 3918.55,
     "target": 4845.52,
-    "exit_price": 3918.55,
-    "exit_date": "2024-10-24",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000000115885097
+    "exit_price": 4000.075439453125,
+    "exit_date": "2024-10-23",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.050651349592090236
   },
   {
     "symbol": "ABB",
@@ -1512,10 +1710,10 @@
     "entry_date": "2024-08-08",
     "sl": 7202.98,
     "target": 8906.91,
-    "exit_price": 7357.505859375,
-    "exit_date": "2024-08-13",
+    "exit_price": 7484.18115234375,
+    "exit_date": "2024-08-12",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05004847105760588
+    "pnl_pct": -0.03369301167573433
   },
   {
     "symbol": "ABB",
@@ -1523,10 +1721,21 @@
     "entry_date": "2024-09-23",
     "sl": 7210.35,
     "target": 8916.03,
-    "exit_price": 7468.37109375,
-    "exit_date": "2024-10-24",
+    "exit_price": 7575.98046875,
+    "exit_date": "2024-10-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03672071406195858
+    "pnl_pct": -0.022841130333588904
+  },
+  {
+    "symbol": "ABB",
+    "entry": 8085.12841796875,
+    "entry_date": "2024-10-21",
+    "sl": 7519.17,
+    "target": 9297.9,
+    "exit_price": 7519.17,
+    "exit_date": "2024-10-23",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.06999992934075588
   },
   {
     "symbol": "BEL",
@@ -1556,10 +1765,21 @@
     "entry_date": "2024-10-30",
     "sl": 264.77,
     "target": 327.4,
-    "exit_price": 277.1978759765625,
-    "exit_date": "2024-11-14",
+    "exit_price": 281.0950622558594,
+    "exit_date": "2024-10-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02633849755545384
+    "pnl_pct": -0.01264957503164886
+  },
+  {
+    "symbol": "BEL",
+    "entry": 282.5257568359375,
+    "entry_date": "2024-11-05",
+    "sl": 262.75,
+    "target": 324.9,
+    "exit_price": 295.74676513671875,
+    "exit_date": "2024-11-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.04679576279644719
   },
   {
     "symbol": "BEL",
@@ -1567,10 +1787,10 @@
     "entry_date": "2025-02-04",
     "sl": 261.05,
     "target": 322.81,
-    "exit_price": 273.34991455078125,
-    "exit_date": "2025-02-07",
+    "exit_price": 276.01385498046875,
+    "exit_date": "2025-02-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.026186367633283438
+    "pnl_pct": -0.01669603539555155
   },
   {
     "symbol": "BEL",
@@ -1600,10 +1820,10 @@
     "entry_date": "2025-06-25",
     "sl": 374.65,
     "target": 463.27,
-    "exit_price": 385.1864318847656,
-    "exit_date": "2025-07-29",
+    "exit_price": 386.1785583496094,
+    "exit_date": "2025-07-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04383689472545494
+    "pnl_pct": -0.0413741010159043
   },
   {
     "symbol": "BHEL",
@@ -1611,10 +1831,10 @@
     "entry_date": "2024-07-23",
     "sl": 284.08,
     "target": 351.28,
-    "exit_price": 284.08,
-    "exit_date": "2024-08-05",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000113393376213
+    "exit_price": 299.7976989746094,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.01854576142053627
   },
   {
     "symbol": "BHEL",
@@ -1622,10 +1842,10 @@
     "entry_date": "2025-06-24",
     "sl": 240.47,
     "target": 297.36,
-    "exit_price": 249.8672332763672,
-    "exit_date": "2025-07-23",
+    "exit_price": 249.17095947265625,
+    "exit_date": "2025-07-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03366040159573244
+    "pnl_pct": -0.036353179432325536
   },
   {
     "symbol": "BHEL",
@@ -1633,10 +1853,10 @@
     "entry_date": "2025-08-05",
     "sl": 230.13,
     "target": 284.57,
-    "exit_price": 230.13,
-    "exit_date": "2025-08-07",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000057902204966
+    "exit_price": 239.058837890625,
+    "exit_date": "2025-08-06",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03391743441557837
   },
   {
     "symbol": "GAIL",
@@ -1644,10 +1864,10 @@
     "entry_date": "2024-07-25",
     "sl": 196.78,
     "target": 243.33,
-    "exit_price": 201.72189331054688,
-    "exit_date": "2024-09-09",
+    "exit_price": 206.41868591308594,
+    "exit_date": "2024-09-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.046628639637552836
+    "pnl_pct": -0.024430813316690978
   },
   {
     "symbol": "GAIL",
@@ -1655,10 +1875,10 @@
     "entry_date": "2024-09-25",
     "sl": 194.36,
     "target": 240.33,
-    "exit_price": 208.20663452148438,
-    "exit_date": "2024-10-08",
+    "exit_price": 222.11178588867188,
+    "exit_date": "2024-10-01",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0037235613128127364
+    "pnl_pct": 0.06281310172555138
   },
   {
     "symbol": "GAIL",
@@ -1666,10 +1886,10 @@
     "entry_date": "2025-06-27",
     "sl": 170.79,
     "target": 211.2,
-    "exit_price": 178.50674438476562,
-    "exit_date": "2025-07-10",
+    "exit_price": 177.89144897460938,
+    "exit_date": "2025-07-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.028007573130922326
+    "pnl_pct": -0.03135793662010273
   },
   {
     "symbol": "ONGC",
@@ -1677,10 +1897,10 @@
     "entry_date": "2024-08-05",
     "sl": 258.83,
     "target": 320.06,
-    "exit_price": 279.16278076171875,
-    "exit_date": "2024-09-06",
+    "exit_price": 281.51324462890625,
+    "exit_date": "2024-09-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.0030576593297097577
+    "pnl_pct": 0.011503093131906119
   },
   {
     "symbol": "NMDC",
@@ -1688,10 +1908,10 @@
     "entry_date": "2024-11-04",
     "sl": 64.96,
     "target": 80.32,
-    "exit_price": 68.83238220214844,
-    "exit_date": "2024-11-13",
+    "exit_price": 69.31035614013672,
+    "exit_date": "2024-11-12",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.01452532322036418
+    "pnl_pct": -0.007682160206410131
   },
   {
     "symbol": "NMDC",
@@ -1699,10 +1919,10 @@
     "entry_date": "2025-07-11",
     "sl": 61.46,
     "target": 76.0,
-    "exit_price": 65.6971664428711,
-    "exit_date": "2025-07-16",
+    "exit_price": 65.06546783447266,
+    "exit_date": "2025-07-15",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0059377812050685165
+    "pnl_pct": -0.0154959974002871
   },
   {
     "symbol": "NMDC",
@@ -1710,10 +1930,21 @@
     "entry_date": "2025-07-17",
     "sl": 61.92,
     "target": 76.56,
-    "exit_price": 66.770263671875,
-    "exit_date": "2025-08-29",
+    "exit_price": 68.82697296142578,
+    "exit_date": "2025-07-21",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.002892003930567612
+    "pnl_pct": 0.03378385888918492
+  },
+  {
+    "symbol": "NMDC",
+    "entry": 69.46824645996094,
+    "entry_date": "2025-08-13",
+    "sl": 64.61,
+    "target": 79.89,
+    "exit_price": 66.70233154296875,
+    "exit_date": "2025-08-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03981552807132341
   },
   {
     "symbol": "SAIL",
@@ -1721,10 +1952,10 @@
     "entry_date": "2024-07-15",
     "sl": 138.56,
     "target": 171.34,
-    "exit_price": 144.93283081054688,
-    "exit_date": "2024-07-18",
+    "exit_price": 147.97084045410156,
+    "exit_date": "2024-07-16",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.027231386130430815
+    "pnl_pct": -0.0068406960890132346
   },
   {
     "symbol": "SAIL",
@@ -1732,10 +1963,10 @@
     "entry_date": "2024-07-31",
     "sl": 139.48,
     "target": 172.48,
-    "exit_price": 139.48,
-    "exit_date": "2024-08-05",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000836192282112
+    "exit_price": 143.30601501464844,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.04449816712227056
   },
   {
     "symbol": "SAIL",
@@ -1743,10 +1974,10 @@
     "entry_date": "2025-07-01",
     "sl": 122.47,
     "target": 151.44,
-    "exit_price": 122.47,
-    "exit_date": "2025-07-29",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.0700093703619634
+    "exit_price": 124.0354232788086,
+    "exit_date": "2025-07-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.058122140993879426
   },
   {
     "symbol": "TATACHEM",
@@ -1754,10 +1985,10 @@
     "entry_date": "2024-07-29",
     "sl": 994.7,
     "target": 1230.01,
-    "exit_price": 1005.55908203125,
-    "exit_date": "2024-08-06",
+    "exit_price": 1025.4200439453125,
+    "exit_date": "2024-08-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0598490082040116
+    "pnl_pct": -0.041279932179349006
   },
   {
     "symbol": "TATACHEM",
@@ -1820,10 +2051,21 @@
     "entry_date": "2024-09-30",
     "sl": 4288.75,
     "target": 5303.29,
-    "exit_price": 4288.75,
-    "exit_date": "2024-10-22",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.0700000868232577
+    "exit_price": 4420.63916015625,
+    "exit_date": "2024-10-17",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.041400399852866344
+  },
+  {
+    "symbol": "PIIND",
+    "entry": 4517.4111328125,
+    "entry_date": "2024-10-18",
+    "sl": 4201.19,
+    "target": 5195.02,
+    "exit_price": 4358.33642578125,
+    "exit_date": "2024-10-21",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.035213688184323286
   },
   {
     "symbol": "PIIND",
@@ -1831,10 +2073,10 @@
     "entry_date": "2024-10-30",
     "sl": 4141.18,
     "target": 5120.81,
-    "exit_price": 4141.18,
-    "exit_date": "2024-11-14",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999951422759385
+    "exit_price": 4403.94873046875,
+    "exit_date": "2024-11-13",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.010988544653285155
   },
   {
     "symbol": "PIIND",
@@ -1842,10 +2084,10 @@
     "entry_date": "2025-07-10",
     "sl": 3730.22,
     "target": 4612.64,
-    "exit_price": 3898.67724609375,
-    "exit_date": "2025-08-08",
+    "exit_price": 4002.831787109375,
+    "exit_date": "2025-08-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.028002258441032924
+    "pnl_pct": -0.002034995123267153
   },
   {
     "symbol": "COROMANDEL",
@@ -1853,10 +2095,21 @@
     "entry_date": "2024-07-19",
     "sl": 1460.77,
     "target": 1806.32,
-    "exit_price": 1614.822021484375,
-    "exit_date": "2024-09-26",
+    "exit_price": 1713.5404052734375,
+    "exit_date": "2024-08-12",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.028080638517793164
+    "pnl_pct": 0.0909299542250511
+  },
+  {
+    "symbol": "COROMANDEL",
+    "entry": 1694.864013671875,
+    "entry_date": "2024-09-17",
+    "sl": 1576.22,
+    "target": 1949.09,
+    "exit_price": 1639.5263671875,
+    "exit_date": "2024-09-20",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03265019850441426
   },
   {
     "symbol": "COROMANDEL",
@@ -1864,10 +2117,10 @@
     "entry_date": "2024-09-30",
     "sl": 1539.0,
     "target": 1903.07,
-    "exit_price": 1539.0,
-    "exit_date": "2024-10-07",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.0700024895852351
+    "exit_price": 1600.7406005859375,
+    "exit_date": "2024-10-04",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03269345460379634
   },
   {
     "symbol": "COROMANDEL",
@@ -1875,10 +2128,10 @@
     "entry_date": "2024-10-24",
     "sl": 1506.98,
     "target": 1863.47,
-    "exit_price": 1582.45947265625,
-    "exit_date": "2024-10-28",
+    "exit_price": 1578.9515380859375,
+    "exit_date": "2024-10-25",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02341754906319031
+    "pnl_pct": -0.025582399032239668
   },
   {
     "symbol": "COROMANDEL",
@@ -1886,10 +2139,21 @@
     "entry_date": "2024-10-31",
     "sl": 1533.49,
     "target": 1896.25,
-    "exit_price": 1833.40576171875,
-    "exit_date": "2024-12-24",
+    "exit_price": 1615.21728515625,
+    "exit_date": "2024-11-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.11188687096731446
+    "pnl_pct": -0.020435666439120863
+  },
+  {
+    "symbol": "COROMANDEL",
+    "entry": 1649.4080810546875,
+    "entry_date": "2024-11-05",
+    "sl": 1533.95,
+    "target": 1896.82,
+    "exit_price": 1840.668701171875,
+    "exit_date": "2024-12-23",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.1159571256586114
   },
   {
     "symbol": "COROMANDEL",
@@ -1908,10 +2172,10 @@
     "entry_date": "2025-01-30",
     "sl": 1675.75,
     "target": 2072.17,
-    "exit_price": 1768.3345947265625,
-    "exit_date": "2025-02-01",
+    "exit_price": 1788.1474609375,
+    "exit_date": "2025-01-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.01861855673176106
+    "pnl_pct": -0.007622911849081493
   },
   {
     "symbol": "COROMANDEL",
@@ -1941,10 +2205,10 @@
     "entry_date": "2025-07-01",
     "sl": 2144.08,
     "target": 2651.28,
-    "exit_price": 2214.255859375,
-    "exit_date": "2025-07-03",
+    "exit_price": 2253.314453125,
+    "exit_date": "2025-07-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03955974064193123
+    "pnl_pct": -0.02261795600011479
   },
   {
     "symbol": "COROMANDEL",
@@ -1974,10 +2238,10 @@
     "entry_date": "2024-08-07",
     "sl": 460.12,
     "target": 568.97,
-    "exit_price": 460.12,
-    "exit_date": "2024-09-19",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000538731753653
+    "exit_price": 508.1958923339844,
+    "exit_date": "2024-09-04",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.027165613444237808
   },
   {
     "symbol": "CHAMBLFERT",
@@ -1985,10 +2249,10 @@
     "entry_date": "2024-09-25",
     "sl": 458.74,
     "target": 567.26,
-    "exit_price": 458.74,
-    "exit_date": "2024-10-07",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000756021382411
+    "exit_price": 476.6279296875,
+    "exit_date": "2024-10-04",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.033743795613393184
   },
   {
     "symbol": "CHAMBLFERT",
@@ -1996,10 +2260,10 @@
     "entry_date": "2025-01-22",
     "sl": 447.46,
     "target": 553.31,
-    "exit_price": 462.8146667480469,
-    "exit_date": "2025-01-27",
+    "exit_price": 479.6890869140625,
+    "exit_date": "2025-01-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.038086556353638085
+    "pnl_pct": -0.0030147818883224727
   },
   {
     "symbol": "CHAMBLFERT",
@@ -2029,10 +2293,10 @@
     "entry_date": "2024-08-22",
     "sl": 2720.79,
     "target": 3364.41,
-    "exit_price": 2819.5009765625,
-    "exit_date": "2024-09-20",
+    "exit_price": 2799.97119140625,
+    "exit_date": "2024-09-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.036257640620080335
+    "pnl_pct": -0.04293317695829238
   },
   {
     "symbol": "DEEPAKNTR",
@@ -2040,10 +2304,10 @@
     "entry_date": "2024-09-27",
     "sl": 2670.45,
     "target": 3302.16,
-    "exit_price": 2738.75537109375,
-    "exit_date": "2024-10-07",
+    "exit_price": 2804.035888671875,
+    "exit_date": "2024-10-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0462109688856391
+    "pnl_pct": -0.02347661215241318
   },
   {
     "symbol": "DEEPAKNTR",
@@ -2051,10 +2315,10 @@
     "entry_date": "2024-10-15",
     "sl": 2703.73,
     "target": 3343.32,
-    "exit_price": 2752.43603515625,
-    "exit_date": "2024-10-21",
+    "exit_price": 2814.84130859375,
+    "exit_date": "2024-10-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05324630751483221
+    "pnl_pct": -0.031780804846340334
   },
   {
     "symbol": "SRF",
@@ -2062,10 +2326,21 @@
     "entry_date": "2024-08-05",
     "sl": 2285.5,
     "target": 2826.16,
-    "exit_price": 2472.6328125,
-    "exit_date": "2024-09-12",
+    "exit_price": 2602.11767578125,
+    "exit_date": "2024-09-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.006146412777862662
+    "pnl_pct": 0.05883548575337615
+  },
+  {
+    "symbol": "SRF",
+    "entry": 2493.352294921875,
+    "entry_date": "2024-09-06",
+    "sl": 2318.82,
+    "target": 2867.36,
+    "exit_price": 2466.868896484375,
+    "exit_date": "2024-09-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.010621603088916808
   },
   {
     "symbol": "SRF",
@@ -2073,10 +2348,10 @@
     "entry_date": "2025-02-27",
     "sl": 2640.84,
     "target": 3265.56,
-    "exit_price": 2996.12548828125,
-    "exit_date": "2025-03-17",
+    "exit_price": 2943.691162109375,
+    "exit_date": "2025-03-12",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.05511571372379595
+    "pnl_pct": 0.0366504385880067
   },
   {
     "symbol": "SRF",
@@ -2095,10 +2370,21 @@
     "entry_date": "2025-04-11",
     "sl": 2727.22,
     "target": 3372.37,
-    "exit_price": 2862.104248046875,
-    "exit_date": "2025-05-15",
+    "exit_price": 2993.737548828125,
+    "exit_date": "2025-04-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.024004721470535933
+    "pnl_pct": 0.020883049527819646
+  },
+  {
+    "symbol": "SRF",
+    "entry": 3040.3017578125,
+    "entry_date": "2025-05-07",
+    "sl": 2827.48,
+    "target": 3496.35,
+    "exit_price": 2868.07421875,
+    "exit_date": "2025-05-14",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05664817270849387
   },
   {
     "symbol": "SRF",
@@ -2106,10 +2392,10 @@
     "entry_date": "2025-05-19",
     "sl": 2754.66,
     "target": 3406.3,
-    "exit_price": 2885.58544921875,
-    "exit_date": "2025-05-23",
+    "exit_price": 2890.560302734375,
+    "exit_date": "2025-05-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0257977332494254
+    "pnl_pct": -0.024118173362198323
   },
   {
     "symbol": "SRF",
@@ -2117,10 +2403,10 @@
     "entry_date": "2025-06-25",
     "sl": 2850.43,
     "target": 3524.72,
-    "exit_price": 3263.968994140625,
-    "exit_date": "2025-07-09",
+    "exit_price": 3269.938720703125,
+    "exit_date": "2025-07-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.0649245328933193
+    "pnl_pct": 0.06687225613532423
   },
   {
     "symbol": "SRF",
@@ -2128,10 +2414,10 @@
     "entry_date": "2025-07-23",
     "sl": 2954.53,
     "target": 3653.45,
-    "exit_price": 3041.197265625,
-    "exit_date": "2025-07-28",
+    "exit_price": 3025.476806640625,
+    "exit_date": "2025-07-25",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04271836990269909
+    "pnl_pct": -0.04766671928224765
   },
   {
     "symbol": "POLYCAB",
@@ -2139,10 +2425,21 @@
     "entry_date": "2024-09-05",
     "sl": 6119.94,
     "target": 7567.66,
-    "exit_price": 6492.044921875,
-    "exit_date": "2024-09-20",
+    "exit_price": 6552.765625,
+    "exit_date": "2024-09-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.013453492429818133
+    "pnl_pct": -0.004226230707809983
+  },
+  {
+    "symbol": "POLYCAB",
+    "entry": 6741.11279296875,
+    "entry_date": "2024-09-11",
+    "sl": 6269.23,
+    "target": 7752.28,
+    "exit_price": 6409.4013671875,
+    "exit_date": "2024-09-19",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.049207220820758
   },
   {
     "symbol": "POLYCAB",
@@ -2161,10 +2458,10 @@
     "entry_date": "2024-10-18",
     "sl": 6554.02,
     "target": 8104.44,
-    "exit_price": 6554.02,
-    "exit_date": "2024-10-22",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000060140173713
+    "exit_price": 6779.46484375,
+    "exit_date": "2024-10-21",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03801052979613036
   },
   {
     "symbol": "POLYCAB",
@@ -2172,10 +2469,10 @@
     "entry_date": "2024-11-06",
     "sl": 6336.38,
     "target": 7835.31,
-    "exit_price": 6639.5654296875,
-    "exit_date": "2024-11-11",
+    "exit_price": 6656.78662109375,
+    "exit_date": "2024-11-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.025501325207201806
+    "pnl_pct": -0.022973745897762934
   },
   {
     "symbol": "POLYCAB",
@@ -2183,10 +2480,10 @@
     "entry_date": "2024-11-25",
     "sl": 6227.95,
     "target": 7701.23,
-    "exit_price": 7266.2685546875,
-    "exit_date": "2024-12-05",
+    "exit_price": 7225.1943359375,
+    "exit_date": "2024-12-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.085048452455463
+    "pnl_pct": 0.07891497181748768
   },
   {
     "symbol": "POLYCAB",
@@ -2194,10 +2491,10 @@
     "entry_date": "2024-12-20",
     "sl": 6607.27,
     "target": 8170.28,
-    "exit_price": 6680.04541015625,
-    "exit_date": "2025-01-09",
+    "exit_price": 6877.0537109375,
+    "exit_date": "2025-01-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05975694232295907
+    "pnl_pct": -0.03202723754689709
   },
   {
     "symbol": "POLYCAB",
@@ -2216,10 +2513,10 @@
     "entry_date": "2024-09-10",
     "sl": 425.32,
     "target": 525.93,
-    "exit_price": 432.45306396484375,
-    "exit_date": "2024-09-25",
+    "exit_price": 430.2004699707031,
+    "exit_date": "2024-09-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05439562283799251
+    "pnl_pct": -0.05932115792681637
   },
   {
     "symbol": "CROMPTON",
@@ -2227,10 +2524,10 @@
     "entry_date": "2024-10-10",
     "sl": 401.59,
     "target": 496.59,
-    "exit_price": 420.7982482910156,
-    "exit_date": "2024-10-14",
+    "exit_price": 421.9735412597656,
+    "exit_date": "2024-10-11",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.025515976876501527
+    "pnl_pct": -0.022794234984305745
   },
   {
     "symbol": "CROMPTON",
@@ -2238,10 +2535,10 @@
     "entry_date": "2024-12-03",
     "sl": 372.67,
     "target": 460.83,
-    "exit_price": 397.8313903808594,
-    "exit_date": "2024-12-06",
+    "exit_price": 396.85198974609375,
+    "exit_date": "2024-12-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.007210063839916081
+    "pnl_pct": -0.009654162312721992
   },
   {
     "symbol": "VOLTAS",
@@ -2260,10 +2557,10 @@
     "entry_date": "2024-10-18",
     "sl": 1719.7,
     "target": 2126.51,
-    "exit_price": 1719.7,
-    "exit_date": "2024-10-28",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999833510759018
+    "exit_price": 1739.6434326171875,
+    "exit_date": "2024-10-25",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05921306701568234
   },
   {
     "symbol": "VOLTAS",
@@ -2271,10 +2568,10 @@
     "entry_date": "2024-10-29",
     "sl": 1632.39,
     "target": 2018.55,
-    "exit_price": 1632.39,
-    "exit_date": "2024-10-31",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999947840840283
+    "exit_price": 1683.18701171875,
+    "exit_date": "2024-10-30",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.0410595514340083
   },
   {
     "symbol": "VOLTAS",
@@ -2282,10 +2579,10 @@
     "entry_date": "2024-12-30",
     "sl": 1632.76,
     "target": 2019.0,
-    "exit_price": 1649.0850830078125,
-    "exit_date": "2025-01-10",
+    "exit_price": 1712.9271240234375,
+    "exit_date": "2025-01-09",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.06070017661970111
+    "pnl_pct": -0.024336487160550105
   },
   {
     "symbol": "CONCOR",
@@ -2293,10 +2590,10 @@
     "entry_date": "2024-07-15",
     "sl": 950.45,
     "target": 1175.29,
-    "exit_price": 978.0700073242188,
-    "exit_date": "2024-07-19",
+    "exit_price": 1005.8848876953125,
+    "exit_date": "2024-07-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0429781074069272
+    "pnl_pct": -0.015761804631404083
   },
   {
     "symbol": "RBLBANK",
@@ -2326,10 +2623,10 @@
     "entry_date": "2024-08-30",
     "sl": 179.37,
     "target": 221.8,
-    "exit_price": 187.86700439453125,
-    "exit_date": "2024-09-05",
+    "exit_price": 186.10374450683594,
+    "exit_date": "2024-09-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02593739284921445
+    "pnl_pct": -0.03507963434515057
   },
   {
     "symbol": "FEDERALBNK",
@@ -2337,10 +2634,10 @@
     "entry_date": "2024-09-24",
     "sl": 175.69,
     "target": 217.25,
-    "exit_price": 195.2667999267578,
-    "exit_date": "2024-10-01",
+    "exit_price": 190.75958251953125,
+    "exit_date": "2024-09-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.03361129445851454
+    "pnl_pct": 0.00975311262505989
   },
   {
     "symbol": "FEDERALBNK",
@@ -2348,10 +2645,10 @@
     "entry_date": "2025-01-02",
     "sl": 189.91,
     "target": 234.83,
-    "exit_price": 195.45501708984375,
-    "exit_date": "2025-01-07",
+    "exit_price": 195.67294311523438,
+    "exit_date": "2025-01-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04283493275064558
+    "pnl_pct": -0.04176772464386917
   },
   {
     "symbol": "FEDERALBNK",
@@ -2359,10 +2656,10 @@
     "entry_date": "2025-04-11",
     "sl": 175.44,
     "target": 216.95,
-    "exit_price": 189.70953369140625,
-    "exit_date": "2025-05-05",
+    "exit_price": 187.73825073242188,
+    "exit_date": "2025-05-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.005618546444569186
+    "pnl_pct": -0.0048308952111646205
   },
   {
     "symbol": "FEDERALBNK",
@@ -2370,10 +2667,10 @@
     "entry_date": "2025-06-19",
     "sl": 187.86,
     "target": 232.3,
-    "exit_price": 203.28074645996094,
-    "exit_date": "2025-07-29",
+    "exit_price": 204.0633087158203,
+    "exit_date": "2025-07-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.006326037922839968
+    "pnl_pct": 0.010200053480540788
   },
   {
     "symbol": "CANBK",
@@ -2381,10 +2678,10 @@
     "entry_date": "2024-07-15",
     "sl": 101.91,
     "target": 126.02,
-    "exit_price": 107.25242614746094,
-    "exit_date": "2024-07-22",
+    "exit_price": 105.50475311279297,
+    "exit_date": "2024-07-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.021236586970778067
+    "pnl_pct": -0.03718548888110799
   },
   {
     "symbol": "CANBK",
@@ -2392,10 +2689,10 @@
     "entry_date": "2024-07-29",
     "sl": 100.74,
     "target": 124.58,
-    "exit_price": 105.31784057617188,
-    "exit_date": "2024-08-01",
+    "exit_price": 107.2056884765625,
+    "exit_date": "2024-07-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02778015476248077
+    "pnl_pct": -0.010352877641067704
   },
   {
     "symbol": "CANBK",
@@ -2403,10 +2700,10 @@
     "entry_date": "2024-11-06",
     "sl": 91.48,
     "target": 113.12,
-    "exit_price": 96.9066162109375,
-    "exit_date": "2024-11-08",
+    "exit_price": 98.19633483886719,
+    "exit_date": "2024-11-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.014821870123262214
+    "pnl_pct": -0.0017102515814979478
   },
   {
     "symbol": "CANBK",
@@ -2425,10 +2722,10 @@
     "entry_date": "2025-07-24",
     "sl": 102.19,
     "target": 126.37,
-    "exit_price": 103.82504272460938,
-    "exit_date": "2025-07-31",
+    "exit_price": 104.74470520019531,
+    "exit_date": "2025-07-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05514937479452873
+    "pnl_pct": -0.04678006771569407
   },
   {
     "symbol": "UNIONBANK",
@@ -2436,10 +2733,10 @@
     "entry_date": "2025-06-27",
     "sl": 130.24,
     "target": 161.05,
-    "exit_price": 134.28219604492188,
-    "exit_date": "2025-07-22",
+    "exit_price": 134.00975036621094,
+    "exit_date": "2025-07-21",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04112446757091173
+    "pnl_pct": -0.04306993393150477
   },
   {
     "symbol": "INDIANB",
@@ -2447,10 +2744,10 @@
     "entry_date": "2024-07-23",
     "sl": 490.48,
     "target": 606.5,
-    "exit_price": 525.43603515625,
-    "exit_date": "2024-08-14",
+    "exit_price": 530.5438842773438,
+    "exit_date": "2024-08-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.003711225287623432
+    "pnl_pct": 0.005973859864096106
   },
   {
     "symbol": "INDIANB",
@@ -2458,10 +2755,10 @@
     "entry_date": "2024-08-28",
     "sl": 504.28,
     "target": 623.58,
-    "exit_price": 525.149658203125,
-    "exit_date": "2024-09-03",
+    "exit_price": 530.6870727539062,
+    "exit_date": "2024-09-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03151682301617202
+    "pnl_pct": -0.02130470014291907
   },
   {
     "symbol": "INDIANB",
@@ -2469,10 +2766,10 @@
     "entry_date": "2025-02-04",
     "sl": 479.69,
     "target": 593.16,
-    "exit_price": 490.30194091796875,
-    "exit_date": "2025-02-11",
+    "exit_price": 500.7562561035156,
+    "exit_date": "2025-02-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04942160802872453
+    "pnl_pct": -0.029153187105013197
   },
   {
     "symbol": "INDIANB",
@@ -2480,10 +2777,10 @@
     "entry_date": "2025-03-28",
     "sl": 480.62,
     "target": 594.32,
-    "exit_price": 580.6195068359375,
-    "exit_date": "2025-05-28",
+    "exit_price": 524.338134765625,
+    "exit_date": "2025-04-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.123499072477605
+    "pnl_pct": 0.01459458584858408
   },
   {
     "symbol": "INDIANB",
@@ -2491,10 +2788,10 @@
     "entry_date": "2025-06-19",
     "sl": 560.16,
     "target": 692.67,
-    "exit_price": 656.0738525390625,
-    "exit_date": "2025-08-20",
+    "exit_price": 601.7804565429688,
+    "exit_date": "2025-07-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.08924642761056889
+    "pnl_pct": -0.0008941676939360453
   },
   {
     "symbol": "MAHABANK",
@@ -2502,10 +2799,10 @@
     "entry_date": "2024-07-18",
     "sl": 58.82,
     "target": 72.74,
-    "exit_price": 58.82,
-    "exit_date": "2024-08-05",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07002713024732173
+    "exit_price": 61.667694091796875,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.025003698647082243
   },
   {
     "symbol": "MAHABANK",
@@ -2513,10 +2810,10 @@
     "entry_date": "2025-08-08",
     "sl": 50.22,
     "target": 62.1,
-    "exit_price": 53.24618911743164,
-    "exit_date": "2025-08-18",
+    "exit_price": 52.770774841308594,
+    "exit_date": "2025-08-14",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.014013580848388729
+    "pnl_pct": -0.02281706570801522
   },
   {
     "symbol": "MAHABANK",
@@ -2524,10 +2821,10 @@
     "entry_date": "2025-08-21",
     "sl": 49.86,
     "target": 61.66,
-    "exit_price": 52.71256637573242,
-    "exit_date": "2025-08-25",
+    "exit_price": 53.1685676574707,
+    "exit_date": "2025-08-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.01682939023681347
+    "pnl_pct": -0.008324263489165316
   },
   {
     "symbol": "AUBANK",
@@ -2535,10 +2832,10 @@
     "entry_date": "2024-10-07",
     "sl": 680.19,
     "target": 841.09,
-    "exit_price": 680.19,
-    "exit_date": "2024-10-18",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999975214976689
+    "exit_price": 688.8806762695312,
+    "exit_date": "2024-10-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05811729124229964
   },
   {
     "symbol": "JKCEMENT",
@@ -2546,10 +2843,10 @@
     "entry_date": "2024-08-01",
     "sl": 4087.19,
     "target": 5054.05,
-    "exit_price": 4212.7412109375,
-    "exit_date": "2024-08-06",
+    "exit_price": 4179.29638671875,
+    "exit_date": "2024-08-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04143102491634445
+    "pnl_pct": -0.04904107482636154
   },
   {
     "symbol": "JKCEMENT",
@@ -2568,10 +2865,10 @@
     "entry_date": "2024-09-20",
     "sl": 4282.13,
     "target": 5295.1,
-    "exit_price": 4414.45263671875,
-    "exit_date": "2024-10-08",
+    "exit_price": 4340.15869140625,
+    "exit_date": "2024-10-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04126115190987972
+    "pnl_pct": -0.05739644600195103
   },
   {
     "symbol": "JKCEMENT",
@@ -2590,10 +2887,10 @@
     "entry_date": "2025-02-12",
     "sl": 4390.23,
     "target": 5428.77,
-    "exit_price": 4609.60498046875,
-    "exit_date": "2025-02-17",
+    "exit_price": 4628.8369140625,
+    "exit_date": "2025-02-14",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.023527974631198503
+    "pnl_pct": -0.019453993188619952
   },
   {
     "symbol": "JKCEMENT",
@@ -2634,10 +2931,10 @@
     "entry_date": "2024-09-26",
     "sl": 2276.91,
     "target": 2815.54,
-    "exit_price": 2410.020751953125,
-    "exit_date": "2024-10-04",
+    "exit_price": 2434.77685546875,
+    "exit_date": "2024-10-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.015632499156629235
+    "pnl_pct": -0.005520924918711822
   },
   {
     "symbol": "RAMCOCEM",
@@ -2645,10 +2942,21 @@
     "entry_date": "2025-05-08",
     "sl": 880.55,
     "target": 1088.85,
-    "exit_price": 1066.095947265625,
-    "exit_date": "2025-06-16",
+    "exit_price": 1001.6333618164062,
+    "exit_date": "2025-05-23",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.1259660150918978
+    "pnl_pct": 0.057883324554576676
+  },
+  {
+    "symbol": "RAMCOCEM",
+    "entry": 969.2776489257812,
+    "entry_date": "2025-05-27",
+    "sl": 901.43,
+    "target": 1114.67,
+    "exit_price": 1063.009765625,
+    "exit_date": "2025-06-10",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.09670306212373615
   },
   {
     "symbol": "RAMCOCEM",
@@ -2656,10 +2964,10 @@
     "entry_date": "2025-06-25",
     "sl": 965.54,
     "target": 1193.95,
-    "exit_price": 1097.3067626953125,
-    "exit_date": "2025-07-09",
+    "exit_price": 1094.519287109375,
+    "exit_date": "2025-07-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.05691125831427516
+    "pnl_pct": 0.054226398957519725
   },
   {
     "symbol": "BERGEPAINT",
@@ -2667,10 +2975,10 @@
     "entry_date": "2025-06-11",
     "sl": 520.05,
     "target": 643.08,
-    "exit_price": 528.1904907226562,
-    "exit_date": "2025-06-20",
+    "exit_price": 536.8170166015625,
+    "exit_date": "2025-06-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05544789933943688
+    "pnl_pct": -0.04002126201172685
   },
   {
     "symbol": "BERGEPAINT",
@@ -2678,10 +2986,10 @@
     "entry_date": "2025-06-23",
     "sl": 507.35,
     "target": 627.37,
-    "exit_price": 553.2813720703125,
-    "exit_date": "2025-07-15",
+    "exit_price": 570.04150390625,
+    "exit_date": "2025-07-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.014186361804585775
+    "pnl_pct": 0.044908337978210734
   },
   {
     "symbol": "BERGEPAINT",
@@ -2689,10 +2997,21 @@
     "entry_date": "2025-07-29",
     "sl": 524.0,
     "target": 647.95,
-    "exit_price": 546.9207153320312,
-    "exit_date": "2025-08-08",
+    "exit_price": 556.92919921875,
+    "exit_date": "2025-07-31",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029311791922642615
+    "pnl_pct": -0.01154849092265735
+  },
+  {
+    "symbol": "BERGEPAINT",
+    "entry": 558.9009399414062,
+    "entry_date": "2025-08-01",
+    "sl": 519.78,
+    "target": 642.74,
+    "exit_price": 541.8589477539062,
+    "exit_date": "2025-08-07",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.030491972672807885
   },
   {
     "symbol": "EICHERMOT",
@@ -2700,10 +3019,10 @@
     "entry_date": "2024-08-09",
     "sl": 4388.99,
     "target": 5427.25,
-    "exit_price": 4638.0126953125,
-    "exit_date": "2024-09-09",
+    "exit_price": 4832.91748046875,
+    "exit_date": "2024-08-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.017233856780689605
+    "pnl_pct": 0.024065259152431
   },
   {
     "symbol": "EICHERMOT",
@@ -2711,10 +3030,10 @@
     "entry_date": "2024-09-12",
     "sl": 4429.33,
     "target": 5477.13,
-    "exit_price": 4598.39599609375,
-    "exit_date": "2024-10-04",
+    "exit_price": 4946.001953125,
+    "exit_date": "2024-09-27",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03450267252925347
+    "pnl_pct": 0.03848204275226634
   },
   {
     "symbol": "EICHERMOT",
@@ -2722,10 +3041,10 @@
     "entry_date": "2024-10-29",
     "sl": 4450.37,
     "target": 5503.14,
-    "exit_price": 4683.05078125,
-    "exit_date": "2024-11-11",
+    "exit_price": 4675.03955078125,
+    "exit_date": "2024-11-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.021375406553320663
+    "pnl_pct": -0.023049526166090583
   },
   {
     "symbol": "EICHERMOT",
@@ -2744,10 +3063,10 @@
     "entry_date": "2025-01-28",
     "sl": 4638.67,
     "target": 5735.99,
-    "exit_price": 4737.76123046875,
-    "exit_date": "2025-02-12",
+    "exit_price": 5358.91748046875,
+    "exit_date": "2025-02-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.050133102667075345
+    "pnl_pct": 0.07440161557749074
   },
   {
     "symbol": "EICHERMOT",
@@ -2766,10 +3085,32 @@
     "entry_date": "2025-04-08",
     "sl": 4753.1,
     "target": 5877.5,
-    "exit_price": 5237.529296875,
-    "exit_date": "2025-06-02",
+    "exit_price": 5438.78466796875,
+    "exit_date": "2025-04-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.02478329141767902
+    "pnl_pct": 0.06416123661179862
+  },
+  {
+    "symbol": "EICHERMOT",
+    "entry": 5387.982421875,
+    "entry_date": "2025-05-06",
+    "sl": 5010.82,
+    "target": 6196.18,
+    "exit_price": 5201.3818359375,
+    "exit_date": "2025-05-09",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.034632738440257126
+  },
+  {
+    "symbol": "EICHERMOT",
+    "entry": 5382.609375,
+    "entry_date": "2025-05-16",
+    "sl": 5005.83,
+    "target": 6190.0,
+    "exit_price": 5203.82421875,
+    "exit_date": "2025-05-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03321533178320227
   },
   {
     "symbol": "EICHERMOT",
@@ -2788,10 +3129,10 @@
     "entry_date": "2025-07-11",
     "sl": 5099.41,
     "target": 6305.72,
-    "exit_price": 5316.17529296875,
-    "exit_date": "2025-07-23",
+    "exit_price": 5314.22119140625,
+    "exit_date": "2025-07-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03046776975636862
+    "pnl_pct": -0.030824147103165098
   },
   {
     "symbol": "EICHERMOT",
@@ -2810,10 +3151,10 @@
     "entry_date": "2024-07-18",
     "sl": 4718.86,
     "target": 5835.15,
-    "exit_price": 4815.61083984375,
-    "exit_date": "2024-08-05",
+    "exit_price": 4899.4951171875,
+    "exit_date": "2024-08-02",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.050932830955477994
+    "pnl_pct": -0.03440080287561731
   },
   {
     "symbol": "HEROMOTOCO",
@@ -2821,10 +3162,10 @@
     "entry_date": "2024-09-30",
     "sl": 4935.1,
     "target": 6102.55,
-    "exit_price": 5110.693359375,
-    "exit_date": "2024-10-07",
+    "exit_price": 5128.6220703125,
+    "exit_date": "2024-10-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03691091570893283
+    "pnl_pct": -0.03353232408053043
   },
   {
     "symbol": "BAJAJ-AUTO",
@@ -2843,10 +3184,10 @@
     "entry_date": "2024-08-22",
     "sl": 8867.51,
     "target": 10965.2,
-    "exit_price": 10033.478515625,
-    "exit_date": "2024-08-26",
+    "exit_price": 10008.3779296875,
+    "exit_date": "2024-08-23",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.052283450792760235
+    "pnl_pct": 0.04965097082620624
   },
   {
     "symbol": "BAJAJ-AUTO",
@@ -2865,10 +3206,21 @@
     "entry_date": "2024-08-05",
     "sl": 612.86,
     "target": 757.83,
-    "exit_price": 632.9566040039062,
-    "exit_date": "2024-09-04",
+    "exit_price": 616.1915283203125,
+    "exit_date": "2024-08-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03950026484603503
+    "pnl_pct": -0.06494095169891854
+  },
+  {
+    "symbol": "MARICO",
+    "entry": 647.6138305664062,
+    "entry_date": "2024-08-13",
+    "sl": 602.28,
+    "target": 744.76,
+    "exit_price": 634.476318359375,
+    "exit_date": "2024-08-30",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.020286027856355564
   },
   {
     "symbol": "MARICO",
@@ -2876,10 +3228,10 @@
     "entry_date": "2024-10-03",
     "sl": 637.38,
     "target": 788.16,
-    "exit_price": 656.1925048828125,
-    "exit_date": "2024-10-18",
+    "exit_price": 653.0551147460938,
+    "exit_date": "2024-10-17",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.04255772764222719
+    "pnl_pct": -0.047135454329778
   },
   {
     "symbol": "MARICO",
@@ -2887,10 +3239,10 @@
     "entry_date": "2024-11-29",
     "sl": 588.06,
     "target": 727.17,
-    "exit_price": 619.2308349609375,
-    "exit_date": "2024-12-04",
+    "exit_price": 629.133056640625,
+    "exit_date": "2024-12-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.02069938364400813
+    "pnl_pct": -0.005039227129316225
   },
   {
     "symbol": "MARICO",
@@ -2898,10 +3250,10 @@
     "entry_date": "2024-12-16",
     "sl": 588.19,
     "target": 727.34,
-    "exit_price": 624.0839233398438,
-    "exit_date": "2024-12-23",
+    "exit_price": 621.044677734375,
+    "exit_date": "2024-12-17",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.013253679433100471
+    "pnl_pct": -0.018059065866460534
   },
   {
     "symbol": "MARICO",
@@ -2909,10 +3261,21 @@
     "entry_date": "2025-01-06",
     "sl": 591.16,
     "target": 731.0,
-    "exit_price": 634.8447875976562,
-    "exit_date": "2025-02-10",
+    "exit_price": 625.8976440429688,
+    "exit_date": "2025-01-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0012711081195655879
+    "pnl_pct": -0.015346628534063211
+  },
+  {
+    "symbol": "MARICO",
+    "entry": 651.3884887695312,
+    "entry_date": "2025-01-17",
+    "sl": 605.79,
+    "target": 749.1,
+    "exit_price": 639.9207763671875,
+    "exit_date": "2025-02-07",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.017605027721638414
   },
   {
     "symbol": "MARICO",
@@ -2920,10 +3283,10 @@
     "entry_date": "2025-05-08",
     "sl": 659.57,
     "target": 815.59,
-    "exit_price": 681.2680053710938,
-    "exit_date": "2025-06-13",
+    "exit_price": 682.5,
+    "exit_date": "2025-06-12",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03939953386083951
+    "pnl_pct": -0.0376623986871957
   },
   {
     "symbol": "MARICO",
@@ -2931,10 +3294,10 @@
     "entry_date": "2025-06-25",
     "sl": 646.14,
     "target": 798.99,
-    "exit_price": 718.8697509765625,
-    "exit_date": "2025-07-07",
+    "exit_price": 718.1305541992188,
+    "exit_date": "2025-07-04",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.03468562384110312
+    "pnl_pct": 0.03362168106472639
   },
   {
     "symbol": "MARICO",
@@ -2942,10 +3305,10 @@
     "entry_date": "2025-07-21",
     "sl": 657.87,
     "target": 813.5,
-    "exit_price": 683.978515625,
-    "exit_date": "2025-07-25",
+    "exit_price": 696.7423706054688,
+    "exit_date": "2025-07-24",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.0330917652645871
+    "pnl_pct": -0.015048104234815483
   },
   {
     "symbol": "MARICO",
@@ -2953,10 +3316,10 @@
     "entry_date": "2025-08-01",
     "sl": 658.41,
     "target": 814.16,
-    "exit_price": 748.4274291992188,
-    "exit_date": "2025-08-20",
+    "exit_price": 700.7454833984375,
+    "exit_date": "2025-08-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.05715684572237293
+    "pnl_pct": -0.01019410034676356
   },
   {
     "symbol": "MARICO",
@@ -2964,10 +3327,10 @@
     "entry_date": "2025-08-26",
     "sl": 664.47,
     "target": 821.66,
-    "exit_price": 722.5457763671875,
-    "exit_date": "2025-08-29",
-    "exit_reason": "End of data",
-    "pnl_pct": 0.011285242784862983
+    "exit_price": 708.3606567382812,
+    "exit_date": "2025-08-28",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.008568450388703857
   },
   {
     "symbol": "BIOCON",
@@ -2975,10 +3338,10 @@
     "entry_date": "2024-08-01",
     "sl": 329.08,
     "target": 406.93,
-    "exit_price": 336.09814453125,
-    "exit_date": "2024-08-09",
+    "exit_price": 333.6543273925781,
+    "exit_date": "2024-08-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.05017611380847652
+    "pnl_pct": -0.05708241760563702
   },
   {
     "symbol": "BIOCON",
@@ -2997,10 +3360,10 @@
     "entry_date": "2024-09-18",
     "sl": 337.34,
     "target": 417.14,
-    "exit_price": 345.4743957519531,
-    "exit_date": "2024-10-04",
+    "exit_price": 355.6485900878906,
+    "exit_date": "2024-10-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.047573195193858164
+    "pnl_pct": -0.019524299177230812
   },
   {
     "symbol": "BIOCON",
@@ -3008,10 +3371,10 @@
     "entry_date": "2025-06-18",
     "sl": 317.26,
     "target": 392.31,
-    "exit_price": 378.6471862792969,
-    "exit_date": "2025-07-14",
+    "exit_price": 368.9088134765625,
+    "exit_date": "2025-07-08",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.1099616543589182
+    "pnl_pct": 0.08141470939650702
   },
   {
     "symbol": "BIOCON",
@@ -3019,10 +3382,10 @@
     "entry_date": "2025-08-04",
     "sl": 355.21,
     "target": 439.23,
-    "exit_price": 355.21,
-    "exit_date": "2025-08-07",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999269706498723
+    "exit_price": 359.9695129394531,
+    "exit_date": "2025-08-06",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05753138743939922
   },
   {
     "symbol": "LUPIN",
@@ -3030,10 +3393,10 @@
     "entry_date": "2024-09-25",
     "sl": 2038.08,
     "target": 2520.2,
-    "exit_price": 2046.885498046875,
-    "exit_date": "2024-10-23",
+    "exit_price": 2103.618896484375,
+    "exit_date": "2024-10-22",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.06598080925708089
+    "pnl_pct": -0.040092657258714526
   },
   {
     "symbol": "LUPIN",
@@ -3041,10 +3404,10 @@
     "entry_date": "2024-10-25",
     "sl": 1978.98,
     "target": 2447.13,
-    "exit_price": 2076.534912109375,
-    "exit_date": "2024-11-08",
+    "exit_price": 2083.3427734375,
+    "exit_date": "2024-11-07",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.024157180518405028
+    "pnl_pct": -0.02095790727029539
   },
   {
     "symbol": "LUPIN",
@@ -3052,10 +3415,10 @@
     "entry_date": "2024-12-26",
     "sl": 2002.29,
     "target": 2475.95,
-    "exit_price": 2364.147705078125,
-    "exit_date": "2025-01-02",
+    "exit_price": 2280.52783203125,
+    "exit_date": "2024-12-30",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.09807064402053184
+    "pnl_pct": 0.059231899870887915
   },
   {
     "symbol": "LUPIN",
@@ -3063,10 +3426,10 @@
     "entry_date": "2025-02-05",
     "sl": 2005.04,
     "target": 2479.36,
-    "exit_price": 2005.04,
-    "exit_date": "2025-02-12",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.07000191375249724
+    "exit_price": 2040.0281982421875,
+    "exit_date": "2025-02-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05377333107759666
   },
   {
     "symbol": "HAVELLS",
@@ -3074,10 +3437,10 @@
     "entry_date": "2024-07-18",
     "sl": 1707.49,
     "target": 2111.41,
-    "exit_price": 1743.405517578125,
-    "exit_date": "2024-07-22",
+    "exit_price": 1743.20849609375,
+    "exit_date": "2024-07-19",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.050438911719670944
+    "pnl_pct": -0.050546221197145594
   },
   {
     "symbol": "HAVELLS",
@@ -3085,10 +3448,10 @@
     "entry_date": "2024-07-25",
     "sl": 1674.63,
     "target": 2070.78,
-    "exit_price": 1763.8587646484375,
-    "exit_date": "2024-08-06",
+    "exit_price": 1758.7825927734375,
+    "exit_date": "2024-08-05",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.020445690661758206
+    "pnl_pct": -0.0232647293142599
   },
   {
     "symbol": "HAVELLS",
@@ -3096,10 +3459,21 @@
     "entry_date": "2024-08-16",
     "sl": 1720.14,
     "target": 2127.06,
-    "exit_price": 1977.8541259765625,
-    "exit_date": "2024-09-17",
+    "exit_price": 1884.7548828125,
+    "exit_date": "2024-08-26",
     "exit_reason": "Signal exit",
-    "pnl_pct": 0.06933302200020011
+    "pnl_pct": 0.01899862487199747
+  },
+  {
+    "symbol": "HAVELLS",
+    "entry": 1894.956787109375,
+    "entry_date": "2024-09-10",
+    "sl": 1762.31,
+    "target": 2179.2,
+    "exit_price": 1967.849365234375,
+    "exit_date": "2024-09-12",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.038466617614110646
   },
   {
     "symbol": "HAVELLS",
@@ -3107,10 +3481,21 @@
     "entry_date": "2024-10-03",
     "sl": 1808.56,
     "target": 2236.39,
-    "exit_price": 1808.56,
-    "exit_date": "2024-10-17",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999868619797939
+    "exit_price": 1887.218994140625,
+    "exit_date": "2024-10-07",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.029550502066335013
+  },
+  {
+    "symbol": "HAVELLS",
+    "entry": 1920.5850830078125,
+    "entry_date": "2024-10-08",
+    "sl": 1786.14,
+    "target": 2208.67,
+    "exit_price": 1901.1175537109375,
+    "exit_date": "2024-10-09",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.010136249348759422
   },
   {
     "symbol": "TRENT",
@@ -3118,10 +3503,10 @@
     "entry_date": "2024-07-18",
     "sl": 4926.78,
     "target": 6092.25,
-    "exit_price": 6092.25,
-    "exit_date": "2024-08-09",
-    "exit_reason": "Target hit",
-    "pnl_pct": 0.14999995852344572
+    "exit_price": 5209.98876953125,
+    "exit_date": "2024-08-06",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.01653955946184816
   },
   {
     "symbol": "TRENT",
@@ -3129,10 +3514,10 @@
     "entry_date": "2024-12-31",
     "sl": 6611.12,
     "target": 8175.05,
-    "exit_price": 6860.19580078125,
-    "exit_date": "2025-01-07",
+    "exit_price": 6983.99169921875,
+    "exit_date": "2025-01-06",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03496248872408773
+    "pnl_pct": -0.017547871240329402
   },
   {
     "symbol": "ABFRL",
@@ -3140,10 +3525,10 @@
     "entry_date": "2024-08-07",
     "sl": 300.44,
     "target": 371.51,
-    "exit_price": 311.1000061035156,
-    "exit_date": "2024-08-14",
+    "exit_price": 312.70001220703125,
+    "exit_date": "2024-08-13",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.03699112255379945
+    "pnl_pct": -0.03203830978805185
   },
   {
     "symbol": "ABFRL",
@@ -3151,10 +3536,10 @@
     "entry_date": "2024-08-26",
     "sl": 299.83,
     "target": 370.76,
-    "exit_price": 313.6499938964844,
-    "exit_date": "2024-08-29",
+    "exit_price": 314.8500061035156,
+    "exit_date": "2024-08-28",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.027140199024970932
+    "pnl_pct": -0.023418076724259763
   },
   {
     "symbol": "ABFRL",
@@ -3162,10 +3547,10 @@
     "entry_date": "2024-09-02",
     "sl": 297.41,
     "target": 367.77,
-    "exit_price": 310.45001220703125,
-    "exit_date": "2024-09-04",
+    "exit_price": 315.79998779296875,
+    "exit_date": "2024-09-03",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.029236947913801867
+    "pnl_pct": -0.012507817863299948
   },
   {
     "symbol": "ABFRL",
@@ -3184,10 +3569,10 @@
     "entry_date": "2024-07-15",
     "sl": 5343.15,
     "target": 6607.12,
-    "exit_price": 5343.15,
-    "exit_date": "2024-07-24",
-    "exit_reason": "SL hit",
-    "pnl_pct": -0.06999931669909236
+    "exit_price": 5412.64697265625,
+    "exit_date": "2024-07-23",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.057903037901443535
   },
   {
     "symbol": "SUPREMEIND",
@@ -3195,10 +3580,10 @@
     "entry_date": "2024-09-16",
     "sl": 4928.59,
     "target": 6094.5,
-    "exit_price": 5178.4697265625,
-    "exit_date": "2024-09-26",
+    "exit_price": 5263.99560546875,
+    "exit_date": "2024-09-18",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.022849399207739585
+    "pnl_pct": -0.006711105779498636
   },
   {
     "symbol": "SUPREMEIND",
@@ -3206,9 +3591,9 @@
     "entry_date": "2024-10-07",
     "sl": 4964.04,
     "target": 6138.34,
-    "exit_price": 5132.93115234375,
-    "exit_date": "2024-10-11",
+    "exit_price": 5218.2607421875,
+    "exit_date": "2024-10-10",
     "exit_reason": "Signal exit",
-    "pnl_pct": -0.038359617745806776
+    "pnl_pct": -0.022373356298004295
   }
 ]
