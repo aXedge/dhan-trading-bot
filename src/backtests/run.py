@@ -6,7 +6,7 @@ common reporting module. Supports running multiple strategies or
 multiple parameter sets side-by-side.
 
 Usage:
-    python -m backtests.run --strategy momentum_acceleration --basket nifty50
+    python -m backtests.run --strategy supertrend --basket nifty50
     python -m backtests.run --compare --basket midcap
 """
 
@@ -35,12 +35,14 @@ import strategies.breakout as _breakout
 import strategies.enhanced_breakout as _enhanced_breakout
 import strategies.positional_pullback as _positional_pullback
 import strategies.momentum_acceleration as _momentum_acceleration
+import strategies.supertrend as _supertrend
 
 STRATEGIES = {
     "breakout": _breakout,
     "enhanced_breakout": _enhanced_breakout,
     "positional_pullback": _positional_pullback,
     "momentum_acceleration": _momentum_acceleration,
+    "supertrend": _supertrend,
 }
 
 BASKETS = {
