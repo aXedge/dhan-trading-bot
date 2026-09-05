@@ -61,10 +61,12 @@ import strategies.breakout as _breakout
 import strategies.enhanced_breakout as _enhanced_breakout
 import strategies.positional_pullback as _positional_pullback
 import strategies.momentum_acceleration as _momentum_acceleration
+import strategies.momentum_acceleration as _momentum_acceleration
 
 STRATEGIES["breakout"] = _breakout
 STRATEGIES["enhanced_breakout"] = _enhanced_breakout
 STRATEGIES["positional_pullback"] = _positional_pullback
+STRATEGIES["momentum_acceleration"] = _momentum_acceleration
 STRATEGIES["momentum_acceleration"] = _momentum_acceleration
 
 
