@@ -1,0 +1,802 @@
+[
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.285961728551418,
+    "pnl": 0.10838382349985623
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.285961728551418,
+    "pnl": 0.10838382349985623
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.231869254905393,
+    "pnl": 0.1038247849327244
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.231869254905393,
+    "pnl": 0.1038247849327244
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.231869254905393,
+    "pnl": 0.1038247849327244
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.231869254905393,
+    "pnl": 0.1038247849327244
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.126183547914351,
+    "pnl": 0.10205018688987896
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.126183547914351,
+    "pnl": 0.10205018688987896
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.075871888670147,
+    "pnl": 0.09749114832274713
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.075871888670147,
+    "pnl": 0.09749114832274713
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.075871888670147,
+    "pnl": 0.09749114832274713
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 2.075871888670147,
+    "pnl": 0.09749114832274713
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.066009550539093,
+    "pnl": 0.08984574611325255
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 5,
+    "win_rate": 50.0,
+    "pf": 2.066009550539093,
+    "pnl": 0.08984574611325255
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 2.046751810370141,
+    "pnl": 0.09868417972427482
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 2.046751810370141,
+    "pnl": 0.09868417972427482
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.9983936856228302,
+    "pnl": 0.09412514115714299
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.9983936856228302,
+    "pnl": 0.09412514115714299
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.9983936856228302,
+    "pnl": 0.09412514115714299
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.9983936856228302,
+    "pnl": 0.09412514115714299
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 1.9216050125973647,
+    "pnl": 0.08351210950327528
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 5,
+    "win_rate": 45.45454545454545,
+    "pf": 1.9216050125973647,
+    "pnl": 0.08351210950327528
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.08,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.9179042363787606,
+    "pnl": 0.09235054311429755
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.08,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.9179042363787606,
+    "pnl": 0.09235054311429755
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.9178627720076247,
+    "pnl": 0.15078814807634305
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.9178627720076247,
+    "pnl": 0.15078814807634305
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.8992034192991245,
+    "pnl": 0.14772275603188323
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.8992034192991245,
+    "pnl": 0.14772275603188323
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.8992034192991245,
+    "pnl": 0.14772275603188323
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.8992034192991245,
+    "pnl": 0.14772275603188323
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.1,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.8725903630276837,
+    "pnl": 0.08779150454716572
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.12,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.8725903630276837,
+    "pnl": 0.08779150454716572
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.1,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.8725903630276837,
+    "pnl": 0.08779150454716572
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.12,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.8725903630276837,
+    "pnl": 0.08779150454716572
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.8501167862008527,
+    "pnl": 0.08014610233767114
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 10,
+    "wins": 6,
+    "win_rate": 60.0,
+    "pf": 1.8501167862008527,
+    "pnl": 0.08014610233767114
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.793024282693356,
+    "pnl": 0.0826994370937277
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.793024282693356,
+    "pnl": 0.0826994370937277
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.7493065934740992,
+    "pnl": 0.07814039852659588
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.7493065934740992,
+    "pnl": 0.07814039852659588
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.7493065934740992,
+    "pnl": 0.07814039852659588
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 20
+    },
+    "trades": 10,
+    "wins": 4,
+    "win_rate": 40.0,
+    "pf": 1.7493065934740992,
+    "pnl": 0.07814039852659588
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.06,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.7336478238699489,
+    "pnl": 0.07381246572769387
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.5,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.03,
+      "target_pct": 0.06,
+      "lookback_days": 10
+    },
+    "trades": 11,
+    "wins": 6,
+    "win_rate": 54.54545454545454,
+    "pf": 1.7336478238699489,
+    "pnl": 0.07381246572769387
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 20
+    },
+    "trades": 17,
+    "wins": 7,
+    "win_rate": 41.17647058823529,
+    "pf": 1.700020245106322,
+    "pnl": 0.11500094395165839
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.08,
+      "lookback_days": 20
+    },
+    "trades": 17,
+    "wins": 7,
+    "win_rate": 41.17647058823529,
+    "pf": 1.700020245106322,
+    "pnl": 0.11500094395165839
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.6832766625845157,
+    "pnl": 0.11224991983229451
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 35,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.06,
+      "lookback_days": 15
+    },
+    "trades": 19,
+    "wins": 9,
+    "win_rate": 47.368421052631575,
+    "pf": 1.6832766625845157,
+    "pnl": 0.11224991983229451
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.1,
+      "lookback_days": 20
+    },
+    "trades": 17,
+    "wins": 7,
+    "win_rate": 41.17647058823529,
+    "pf": 1.6813609505251248,
+    "pnl": 0.11193555190719856
+  },
+  {
+    "config": {
+      "adx_min": 25,
+      "volume_multiplier": 1.0,
+      "rsi_min": 30,
+      "rsi_max": 75,
+      "stop_loss_pct": 0.02,
+      "target_pct": 0.12,
+      "lookback_days": 20
+    },
+    "trades": 17,
+    "wins": 7,
+    "win_rate": 41.17647058823529,
+    "pf": 1.6813609505251248,
+    "pnl": 0.11193555190719856
+  }
+]

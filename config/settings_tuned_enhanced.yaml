@@ -1,0 +1,15 @@
+# Enhanced Session T — Best parameters from grid search
+# Generated: 2026-09-05T10:57:04.097100
+# In-sample: 14 stocks, 2023-09-01 to 2025-09-01
+# PF: 2.29 | Win rate: 50.0% | Trades: 10
+
+technical:
+  swing:
+    adx_min: 25
+    volume_multiplier: 1.5
+    rsi_min: 30
+    rsi_max: 75
+    stop_loss_pct: 0.02
+    target_pct: 0.08
+    lookback_days: 15
+    trend_filter: true
