@@ -50,7 +50,7 @@ def should_enter(last, config: dict) -> bool:
     return True
 
 
-def should_exit(last, config: dict, prev=None) -> bool:
+def should_exit(last, config: dict) -> bool:
     """Original Session T exit."""
     if last["Close"] < last["ema10"]:
         return True

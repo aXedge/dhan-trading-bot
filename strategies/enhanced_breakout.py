@@ -66,7 +66,7 @@ def should_enter(last, config: dict) -> bool:
     return True
 
 
-def should_exit(last, config: dict, prev=None) -> bool:
+def should_exit(last, config: dict) -> bool:
     """Enhanced exit: base exits + ADX < 15 (trend dying)."""
     if last["Close"] < last["ema10"]:
         return True
