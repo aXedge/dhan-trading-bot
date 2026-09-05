@@ -1,11 +1,16 @@
 """
-Momentum Acceleration Strategy v2.1
+Momentum Acceleration Strategy v2.2
 ====================================
 
 Based on the user\'s personal trading methodology:
 - Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
-- Exit: Chandelier trailing stop (stateless) + RSI overbought + MACD crossover + gap collapse
+- Exit: Chandelier trailing stop + RSI overbought + MACD crossover + gap collapse
 - Risk: Initial 6% stop loss (backstop), 15% target
+
+v2.2 fixes:
+- Precomputes gap_widening, macd_cross_down, gap_collapsed in prepare()
+- should_enter and should_exit no longer need prev parameter
+- Compatible with backtest engine that calls fn(last, config) with 2 args
 """
 
 import pandas as pd
@@ -13,24 +18,24 @@ import numpy as np
 
 DEFAULT_CONFIG = {
     # Risk management
-    "stop_loss_pct": 0.06,          # 6% initial fixed stop (backstop)
-    "target_pct": 0.15,             # 15% target
+    "stop_loss_pct": 0.06,
+    "target_pct": 0.15,
 
     # Exit parameters
-    "trail_atr_mult": 2.5,          # Chandelier: rolling_max(High, 10) - 2.5 * ATR
-    "chandelier_lookback": 10,      # bars to look back for max high
-    "rsi_exit": 75,                 # exit on RSI overbought
-    "gap_collapse_pct": 0.003,      # gap must collapse below 0.3% of price
+    "trail_atr_mult": 2.5,
+    "chandelier_lookback": 10,
+    "rsi_exit": 75,
+    "gap_collapse_pct": 0.003,
 
     # Entry parameters
     "ema_fast": 5,
     "ema_slow": 20,
     "ema_trend": 50,
     "ema_long": 200,
-    "gap_min_pct": 0.002,          # minimum gap as % of price (0.2%)
-    "support_tol_pct": 0.02,        # within 2% of support level
-    "rsi_entry_max": 70,            # max RSI for entry
-    "adx_min": 15,                  # minimum ADX for entry
+    "gap_min_pct": 0.002,
+    "support_tol_pct": 0.02,
+    "rsi_entry_max": 70,
+    "adx_min": 15,
 
     # Indicator parameters
     "rsi_period": 14,
@@ -46,7 +51,7 @@ def prepare(df, config):
     """Compute all indicators on the DataFrame."""
     df = df.copy()
 
-    # Flatten multi-level columns from yfinance (e.g., ('Close', 'RELIANCE.NS') -> 'Close')
+    # Flatten multi-level columns from yfinance
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
@@ -63,7 +68,7 @@ def prepare(df, config):
     df["macd_signal"] = df["macd"].ewm(span=config.get("macd_signal", 9)).mean()
     df["macd_hist"] = df["macd"] - df["macd_signal"]
 
-    # RSI (Wilder\'s method)
+    # RSI (Wilder)
     rsi_period = config.get("rsi_period", 14)
     delta = df["Close"].diff()
     gain = delta.clip(lower=0)
@@ -73,7 +78,7 @@ def prepare(df, config):
     rs = avg_gain / avg_loss.replace(0, np.nan)
     df["rsi"] = 100 - (100 / (1 + rs))
 
-    # ATR (Wilder\'s method)
+    # ATR (Wilder)
     atr_period = config.get("atr_period", 14)
     high_low = df["High"] - df["Low"]
     high_close = (df["High"] - df["Close"].shift()).abs()
@@ -95,18 +100,24 @@ def prepare(df, config):
     # MA gap
     df["ma_gap"] = df["ema5"] - df["ema20"]
 
-    # Swing low (for support proximity)
+    # Swing low
     swing_window = config.get("swing_window", 10)
     df["swing_low"] = df["Low"].rolling(swing_window, min_periods=3).min()
 
-    # Fib 50% approx: midpoint of recent range
+    # Fib 50%
     swing_high = df["High"].rolling(20, min_periods=5).max()
     df["fib_50"] = (swing_high + df["swing_low"]) / 2
 
-    # Chandelier exit: rolling max high for trailing stop
+    # Chandelier trailing stop
     lookback = config.get("chandelier_lookback", 10)
     df["chandelier_max"] = df["High"].rolling(lookback, min_periods=3).max()
     df["chandelier_stop"] = df["chandelier_max"] - config.get("trail_atr_mult", 2.5) * df["atr"]
+
+    # Precomputed signals (so should_enter/should_exit dont need prev)
+    df["gap_widening"] = df["ma_gap"] > df["ma_gap"].shift(1)
+    df["macd_cross_down"] = (df["macd"] < df["macd_signal"]) & (df["macd"].shift(1) >= df["macd_signal"].shift(1))
+    gap_threshold = df["Close"] * config.get("gap_collapse_pct", 0.003)
+    df["gap_collapsed"] = (df["ma_gap"] < gap_threshold) & (df["ma_gap"].shift(1) >= gap_threshold.shift(1))
 
     return df
 
@@ -114,20 +125,8 @@ def prepare(df, config):
 def should_enter(last, config, prev=None):
     """
     Entry: MA gap accelerating + MACD confirmation + support proximity.
-
-    1. Price above EMA200 (long-term uptrend)
-    2. EMA5 > EMA20 (short-term uptrend)
-    3. Gap widening (current gap > prev gap)
-    4. Gap is meaningfully positive (> gap_min_pct of price)
-    5. MACD line > signal line
-    6. MACD histogram > 0
-    7. Near support (EMA20, EMA50, swing low, or fib 50%)
-    8. RSI not overbought (< rsi_entry_max)
-    9. ADX >= adx_min (trend strength)
+    prev parameter is accepted but not needed — all signals precomputed in prepare().
     """
-    if prev is None:
-        return False
-
     if pd.isna(last.get("ema200")) or pd.isna(last.get("atr")) or pd.isna(last.get("adx")):
         return False
 
@@ -141,13 +140,12 @@ def should_enter(last, config, prev=None):
     if last["ema5"] <= last["ema20"]:
         return False
 
-    # 3 & 4. MA gap acceleration — gap must be positive AND widening
-    gap = last["ema5"] - last["ema20"]
-    prev_gap = prev["ema5"] - prev["ema20"]
+    # 3 & 4. MA gap acceleration — gap positive, widening, and meaningful
+    gap = last["ma_gap"]
     gap_min = close * config.get("gap_min_pct", 0.002)
     if gap < gap_min:
         return False
-    if gap <= prev_gap:
+    if not last.get("gap_widening", False):
         return False
 
     # 5 & 6. MACD confirmation
@@ -156,7 +154,7 @@ def should_enter(last, config, prev=None):
     if last.get("macd_hist", 0) <= 0:
         return False
 
-    # 7. Support proximity — near EMA20, EMA50, swing low, or fib 50%
+    # 7. Support proximity
     support_tol = close * config.get("support_tol_pct", 0.02)
     near_ema20 = abs(close - last["ema20"]) < support_tol
     near_ema50 = abs(close - last["ema50"]) < support_tol * 1.5
@@ -178,37 +176,29 @@ def should_enter(last, config, prev=None):
 
 def should_exit(last, config, prev=None):
     """
-    Exit logic (v2.1 — fully stateless):
-
-    1. Chandelier trailing stop: close < chandelier_stop (primary exit)
-    2. RSI overbought: RSI > rsi_exit
-    3. MACD bearish crossover: MACD crosses below signal
-    4. Gap collapse: MA gap narrows below gap_collapse_pct of price
+    Exit logic (v2.2 — fully stateless, no prev needed):
+    1. Chandelier trailing stop
+    2. RSI overbought
+    3. MACD bearish crossover (precomputed)
+    4. Gap collapse (precomputed)
     """
     if pd.isna(last.get("atr")) or pd.isna(last.get("chandelier_stop")):
         return False
 
-    # 1. Chandelier trailing stop — primary exit, lets winners run
+    # 1. Chandelier trailing stop
     if last["Close"] < last["chandelier_stop"]:
         return True
 
-    # 2. RSI overbought — take profit
+    # 2. RSI overbought
     if last.get("rsi", 50) > config.get("rsi_exit", 75):
         return True
 
-    # 3. MACD bearish crossover
-    if prev is not None:
-        if last.get("macd", 0) < last.get("macd_signal", 0) and \
-           prev.get("macd", 0) >= prev.get("macd_signal", 0):
-            return True
+    # 3. MACD bearish crossover (precomputed)
+    if last.get("macd_cross_down", False):
+        return True
 
-    # 4. MA gap collapse — momentum has dissipated
-    gap = last.get("ma_gap", 0)
-    gap_threshold = last["Close"] * config.get("gap_collapse_pct", 0.003)
-    if gap < gap_threshold:
-        if prev is not None:
-            prev_gap = prev.get("ma_gap", gap * 2)
-            if prev_gap > gap_threshold:
-                return True
+    # 4. MA gap collapse (precomputed)
+    if last.get("gap_collapsed", False):
+        return True
 
     return False
