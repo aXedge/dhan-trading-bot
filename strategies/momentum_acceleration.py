@@ -1,16 +1,18 @@
 """
-Momentum Acceleration Strategy v2.2
-====================================
+Momentum Acceleration Strategy v3
+==================================
 
 Based on the user\'s personal trading methodology:
 - Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
-- Exit: Chandelier trailing stop + RSI overbought + MACD crossover + gap collapse
+- Exit: Wide Chandelier trailing stop (3.5x ATR, 20-bar) + RSI overbought ONLY
 - Risk: Initial 6% stop loss (backstop), 15% target
 
-v2.2 fixes:
-- Precomputes gap_widening, macd_cross_down, gap_collapsed in prepare()
-- should_enter and should_exit no longer need prev parameter
-- Compatible with backtest engine that calls fn(last, config) with 2 args
+v3 changes:
+- Widened Chandelier: 3.5x ATR (was 2.5x), 20-bar lookback (was 10)
+- Removed MACD crossover exit (too noisy, fires on normal oscillation)
+- Removed gap collapse exit (too noisy, fires before trend is done)
+- Only exits: Chandelier stop, RSI > 75, fixed SL, fixed target
+- This gives trades maximum room to run
 """
 
 import pandas as pd
@@ -22,10 +24,9 @@ DEFAULT_CONFIG = {
     "target_pct": 0.15,
 
     # Exit parameters
-    "trail_atr_mult": 2.5,
-    "chandelier_lookback": 10,
+    "trail_atr_mult": 3.5,          # widened from 2.5 to 3.5
+    "chandelier_lookback": 20,      # widened from 10 to 20
     "rsi_exit": 75,
-    "gap_collapse_pct": 0.003,
 
     # Entry parameters
     "ema_fast": 5,
@@ -108,16 +109,13 @@ def prepare(df, config):
     swing_high = df["High"].rolling(20, min_periods=5).max()
     df["fib_50"] = (swing_high + df["swing_low"]) / 2
 
-    # Chandelier trailing stop
-    lookback = config.get("chandelier_lookback", 10)
-    df["chandelier_max"] = df["High"].rolling(lookback, min_periods=3).max()
-    df["chandelier_stop"] = df["chandelier_max"] - config.get("trail_atr_mult", 2.5) * df["atr"]
+    # Chandelier trailing stop (wide: 3.5x ATR, 20-bar lookback)
+    lookback = config.get("chandelier_lookback", 20)
+    df["chandelier_max"] = df["High"].rolling(lookback, min_periods=5).max()
+    df["chandelier_stop"] = df["chandelier_max"] - config.get("trail_atr_mult", 3.5) * df["atr"]
 
-    # Precomputed signals (so should_enter/should_exit dont need prev)
+    # Precomputed entry signal
     df["gap_widening"] = df["ma_gap"] > df["ma_gap"].shift(1)
-    df["macd_cross_down"] = (df["macd"] < df["macd_signal"]) & (df["macd"].shift(1) >= df["macd_signal"].shift(1))
-    gap_threshold = df["Close"] * config.get("gap_collapse_pct", 0.003)
-    df["gap_collapsed"] = (df["ma_gap"] < gap_threshold) & (df["ma_gap"].shift(1) >= gap_threshold.shift(1))
 
     return df
 
@@ -125,7 +123,6 @@ def prepare(df, config):
 def should_enter(last, config, prev=None):
     """
     Entry: MA gap accelerating + MACD confirmation + support proximity.
-    prev parameter is accepted but not needed — all signals precomputed in prepare().
     """
     if pd.isna(last.get("ema200")) or pd.isna(last.get("atr")) or pd.isna(last.get("adx")):
         return False
@@ -140,7 +137,7 @@ def should_enter(last, config, prev=None):
     if last["ema5"] <= last["ema20"]:
         return False
 
-    # 3 & 4. MA gap acceleration — gap positive, widening, and meaningful
+    # 3 & 4. MA gap acceleration
     gap = last["ma_gap"]
     gap_min = close * config.get("gap_min_pct", 0.002)
     if gap < gap_min:
@@ -176,29 +173,19 @@ def should_enter(last, config, prev=None):
 
 def should_exit(last, config, prev=None):
     """
-    Exit logic (v2.2 — fully stateless, no prev needed):
-    1. Chandelier trailing stop
-    2. RSI overbought
-    3. MACD bearish crossover (precomputed)
-    4. Gap collapse (precomputed)
+    Exit logic (v3 — simplified, only 2 signal exits):
+    1. Chandelier trailing stop (wide: 3.5x ATR, 20-bar)
+    2. RSI overbought (> 75)
     """
     if pd.isna(last.get("atr")) or pd.isna(last.get("chandelier_stop")):
         return False
 
-    # 1. Chandelier trailing stop
+    # 1. Chandelier trailing stop — primary exit
     if last["Close"] < last["chandelier_stop"]:
         return True
 
-    # 2. RSI overbought
+    # 2. RSI overbought — take profit
     if last.get("rsi", 50) > config.get("rsi_exit", 75):
-        return True
-
-    # 3. MACD bearish crossover (precomputed)
-    if last.get("macd_cross_down", False):
-        return True
-
-    # 4. MA gap collapse (precomputed)
-    if last.get("gap_collapsed", False):
         return True
 
     return False
