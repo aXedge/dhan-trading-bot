@@ -1,0 +1,112 @@
+# ============================================================
+# Session R: Regime Switching
+# ============================================================
+# ADX detects regime → appropriate strategy applied
+# Trending: Enhanced breakout (Session T + ADX + volume + RS filters)
+# Choppy: Mean reversion (oversold bounce in uptrend)
+# Transitional: Cash (no new entries)
+
+# ----------------------------------------------------------
+# Layer 1: Fundamental Screener (shared)
+# ----------------------------------------------------------
+fundamental:
+  universe_indices:
+    - "CNXMIDCAP"
+    - "CNX100"
+
+  min_f_score: 7
+  min_roce: 18.0
+  max_debt_equity: 0.5
+  min_promoter_holding: 50.0
+  max_pledged: 5.0
+
+  weights:
+    piotroski: 25
+    roce: 20
+    debt_equity: 15
+    revenue_growth: 20
+    promoter_holding: 10
+    pledge: 10
+
+  basket_size: 15
+  output_file: "data/basket.json"
+  request_delay: 2
+
+# ----------------------------------------------------------
+# Layer 2: Technical
+# ----------------------------------------------------------
+technical:
+  swing:
+    lookback_days: 10
+    volume_multiplier: 2.0
+    rsi_min: 35
+    rsi_max: 70
+    stop_loss_pct: 0.03
+    target_pct: 0.08
+
+  positional:
+    ema_fast: 50
+    ema_slow: 200
+    stop_loss_pct: 0.05
+    target_pct: 0.15
+
+  rsi_period: 14
+  volume_avg_period: 20
+  price_history_days: 365
+  output_file: "data/signals_R.json"
+
+# ----------------------------------------------------------
+# Regime detection
+# ----------------------------------------------------------
+regime:
+  adx_period: 14
+  adx_trending: 25          # ADX >= 25 → trending → breakout strategy
+  adx_choppy: 20            # ADX < 20 → choppy → mean reversion
+                             # 20-25 → transitional → cash
+
+  # Mean reversion exits (tighter targets, wider stops)
+  mr_stop_loss_pct: 0.05    # 5% SL for mean reversion (volatile entries)
+  mr_target_pct: 0.06       # 6% target (smaller move expected)
+
+  # Breakout exits (from Session T)
+  bo_stop_loss_pct: 0.03    # 3% SL for breakout
+  bo_target_pct: 0.08       # 8% target for breakout
+
+# ----------------------------------------------------------
+# Enhanced breakout filters
+# ----------------------------------------------------------
+breakout_filters:
+  adx_min: 25               # Must have strong trend
+  volume_highest_20d: true  # Volume must be highest in 20 days
+  positive_20d_return: true # Stock must outperform cash
+  rsi_range: [40, 70]       # Not overbought, not dead
+  require_plus_di: true     # +DI must be > -DI
+
+# ----------------------------------------------------------
+# Layer 3: Dhan Execution
+# ----------------------------------------------------------
+execution:
+  max_positions: 8
+  capital_per_stock: 25000
+  product_type: "CNC"
+  order_type: "MARKET"
+  sl_check_interval_sec: 600
+  market_open: "09:15"
+  market_close: "15:30"
+  positions_file: "data/positions_R.json"
+
+# ----------------------------------------------------------
+# Scheduling
+# ----------------------------------------------------------
+schedule:
+  signal_scan: "30 9 * * 1-5"
+  execute_signals: "37 9 * * 1-5"
+  sl_monitor_start: "15 9 * * 1-5"
+  token_refresh: "45 8 * * 1-5"
+
+# ----------------------------------------------------------
+# Dhan API
+# ----------------------------------------------------------
+dhan:
+  base_url: "https://api.dhan.co/v2"
+  exchange_segment: "NSE_EQ"
