@@ -1,17 +1,17 @@
 """
-Momentum Acceleration Strategy v2
-==================================
+Momentum Acceleration Strategy v2.1
+====================================
 
-Based on the user's personal trading methodology:
+Based on the user\'s personal trading methodology:
 - Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
-- Exit: Trailing stop (ATR-based) + minimum holding period + MACD crossover + RSI overbought
-- Risk: Initial 6% stop loss (backstop), then trailing stop at 2.5x ATR below highest high
+- Exit: Chandelier trailing stop (stateless) + RSI overbought + MACD crossover + gap collapse
+- Risk: Initial 6% stop loss (backstop), 15% target
 
-Changes from v1:
-- Added minimum holding period (5 bars) to prevent premature signal exits
-- Replaced single-day gap deceleration exit with ATR trailing stop
-- Gap collapse now requires gap to be meaningfully small (not just narrowing)
-- Trailing stop lets winners run while cutting losses
+v2.1 fixes:
+- Removed module-level _state (was causing 0 trades — incompatible with backtest engine)
+- Replaced stateful trailing stop with Chandelier exit (rolling max high - ATR multiplier)
+- All exit logic is now stateless (only depends on last/prev row data)
+- No minimum holding period needed — Chandelier stop is loose at entry (uses 10-bar lookback)
 """
 
 import pandas as pd
@@ -19,12 +19,12 @@ import numpy as np
 
 DEFAULT_CONFIG = {
     # Risk management
-    "stop_loss_pct": 0.06,          # 6% initial fixed stop (backstop during min_holding)
+    "stop_loss_pct": 0.06,          # 6% initial fixed stop (backstop)
     "target_pct": 0.15,             # 15% target
 
-    # Exit parameters (NEW in v2)
-    "min_holding_bars": 5,          # min bars before signal exits can trigger
-    "trail_atr_mult": 2.5,          # trailing stop = max_high - 2.5 * ATR
+    # Exit parameters
+    "trail_atr_mult": 2.5,          # Chandelier: rolling_max(High, 10) - 2.5 * ATR
+    "chandelier_lookback": 10,      # bars to look back for max high
     "rsi_exit": 75,                 # exit on RSI overbought
     "gap_collapse_pct": 0.003,      # gap must collapse below 0.3% of price
 
@@ -47,9 +47,6 @@ DEFAULT_CONFIG = {
     "swing_window": 10,
 }
 
-# Module-level state for tracking position info across should_enter/should_exit calls
-_state = {}
-
 
 def prepare(df, config):
     """Compute all indicators on the DataFrame."""
@@ -68,7 +65,7 @@ def prepare(df, config):
     df["macd_signal"] = df["macd"].ewm(span=config.get("macd_signal", 9)).mean()
     df["macd_hist"] = df["macd"] - df["macd_signal"]
 
-    # RSI (Wilder's method)
+    # RSI (Wilder\'s method)
     rsi_period = config.get("rsi_period", 14)
     delta = df["Close"].diff()
     gain = delta.clip(lower=0)
@@ -78,7 +75,7 @@ def prepare(df, config):
     rs = avg_gain / avg_loss.replace(0, np.nan)
     df["rsi"] = 100 - (100 / (1 + rs))
 
-    # ATR (Wilder's method)
+    # ATR (Wilder\'s method)
     atr_period = config.get("atr_period", 14)
     high_low = df["High"] - df["Low"]
     high_close = (df["High"] - df["Close"].shift()).abs()
@@ -107,6 +104,11 @@ def prepare(df, config):
     # Fib 50% approx: midpoint of recent range
     swing_high = df["High"].rolling(20, min_periods=5).max()
     df["fib_50"] = (swing_high + df["swing_low"]) / 2
+
+    # Chandelier exit: rolling max high for trailing stop
+    lookback = config.get("chandelier_lookback", 10)
+    df["chandelier_max"] = df["High"].rolling(lookback, min_periods=3).max()
+    df["chandelier_stop"] = df["chandelier_max"] - config.get("trail_atr_mult", 2.5) * df["atr"]
 
     return df
 
@@ -173,50 +175,23 @@ def should_enter(last, config, prev=None):
     if last.get("adx", 0) < config.get("adx_min", 15):
         return False
 
-    # Entry confirmed — initialize position state
-    _state.clear()
-    _state["entry_price"] = close
-    _state["bars_held"] = 0
-    _state["max_high"] = last["High"]
-
     return True
 
 
 def should_exit(last, config, prev=None):
     """
-    Exit logic (v2):
+    Exit logic (v2.1 — fully stateless):
 
-    During min_holding_bars: only fixed SL/target can exit (handled by engine).
-    After min_holding_bars, in priority order:
-    1. Trailing stop: close < max_high - trail_atr_mult * ATR
+    1. Chandelier trailing stop: close < chandelier_stop (primary exit)
     2. RSI overbought: RSI > rsi_exit
     3. MACD bearish crossover: MACD crosses below signal
     4. Gap collapse: MA gap narrows below gap_collapse_pct of price
     """
-    if not _state:
+    if pd.isna(last.get("atr")) or pd.isna(last.get("chandelier_stop")):
         return False
 
-    # Update position state
-    _state["bars_held"] += 1
-    _state["max_high"] = max(_state["max_high"], last["High"])
-
-    bars_held = _state["bars_held"]
-    entry_price = _state["entry_price"]
-    max_high = _state["max_high"]
-    atr = last.get("atr", entry_price * 0.02)
-    if pd.isna(atr):
-        atr = entry_price * 0.02
-
-    min_holding = config.get("min_holding_bars", 5)
-
-    # During minimum holding period, no signal exits
-    if bars_held < min_holding:
-        return False
-
-    # 1. Trailing stop — primary exit, lets winners run
-    trail_mult = config.get("trail_atr_mult", 2.5)
-    trailing_stop = max_high - trail_mult * atr
-    if last["Close"] < trailing_stop:
+    # 1. Chandelier trailing stop — primary exit, lets winners run
+    if last["Close"] < last["chandelier_stop"]:
         return True
 
     # 2. RSI overbought — take profit
@@ -233,8 +208,9 @@ def should_exit(last, config, prev=None):
     gap = last.get("ma_gap", 0)
     gap_threshold = last["Close"] * config.get("gap_collapse_pct", 0.003)
     if gap < gap_threshold:
-        prev_gap = prev.get("ma_gap", gap) if prev is not None else gap * 2
-        if prev_gap > gap_threshold:
-            return True
+        if prev is not None:
+            prev_gap = prev.get("ma_gap", gap * 2)
+            if prev_gap > gap_threshold:
+                return True
 
     return False
