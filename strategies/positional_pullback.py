@@ -116,19 +116,25 @@ def should_enter(last, config: dict) -> bool:
     return True
 
 
-def should_exit(last, config: dict) -> bool:
+def should_exit(last, config: dict, prev=None) -> bool:
     """
     Positional pullback exit.
 
     Exits when the trend shows signs of reversing — not on
     short-term noise. Designed for 1-3 month holds.
-    """
-    # Close below EMA50 (daily trend broken)
-    if last["Close"] < last["ema50"]:
-        return True
 
-    # RSI overbought (take profits)
-    rsi_exit = config.get("rsi_exit", 72)
+    Uses 2-consecutive-day confirmation to avoid false exits.
+    """
+    # Close below EMA50 for 2 consecutive days (real trend break, not noise)
+    if prev is not None:
+        if last["Close"] < last["ema50"] and prev["Close"] < prev["ema50"]:
+            return True
+    else:
+        if last["Close"] < last["ema50"]:
+            return True
+
+    # RSI overbought (take profits) — raised to 75 for positional holds
+    rsi_exit = config.get("rsi_exit", 75)
     if last["rsi"] > rsi_exit:
         return True
 
@@ -161,7 +167,7 @@ DEFAULT_CONFIG = {
     "pullback_tolerance": 0.03,   # within 3% of EMA20
     "rsi_min": 40,
     "rsi_max": 60,
-    "rsi_exit": 72,
+    "rsi_exit": 75,
     "volume_multiplier": 1.0,     # above average (not 2x — positional is less volume-dependent)
     "adx_min": 15,
     "stop_loss_pct": 0.07,        # 7% SL (positional — survives multi-week noise)

@@ -60,6 +60,7 @@ def backtest_stock(
         last_high = float(last["High"])
         last_low = float(last["Low"])
         current_date = last.name
+        prev = df.iloc[i - 1] if i > 0 else last
 
         # Check cooldown
         in_cooldown = False
@@ -94,7 +95,7 @@ def backtest_stock(
                 continue
 
             # Signal-based exit
-            if exit_fn(last, config):
+            if exit_fn(last, config, prev):
                 position["exit_price"] = last_close
                 position["exit_date"] = current_date
                 position["exit_reason"] = "Signal exit"
