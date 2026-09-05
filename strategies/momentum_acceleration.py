@@ -1,18 +1,17 @@
 """
-Momentum Acceleration Strategy v3
+Momentum Acceleration Strategy v4
 ==================================
 
 Based on the user\'s personal trading methodology:
-- Entry: MA gap acceleration (EMA5 > EMA20, gap widening) + MACD confirmation + support proximity
-- Exit: Wide Chandelier trailing stop (3.5x ATR, 20-bar) + RSI overbought ONLY
+- Entry: MA gap acceleration + MACD confirmation + volume confirmation + strong trend
+- Exit: Wide Chandelier trailing stop (3.5x ATR, 20-bar) + RSI overbought
 - Risk: Initial 6% stop loss (backstop), 15% target
 
-v3 changes:
-- Widened Chandelier: 3.5x ATR (was 2.5x), 20-bar lookback (was 10)
-- Removed MACD crossover exit (too noisy, fires on normal oscillation)
-- Removed gap collapse exit (too noisy, fires before trend is done)
-- Only exits: Chandelier stop, RSI > 75, fixed SL, fixed target
-- This gives trades maximum room to run
+v4 changes:
+- Removed support proximity condition (contradictory with gap widening)
+- Added volume filter: volume > 1.5x 20-day average (momentum needs volume)
+- Increased ADX minimum from 15 to 20 (stronger trend filter)
+- Entry is now: trend + gap acceleration + MACD + volume + ADX
 """
 
 import pandas as pd
@@ -24,8 +23,8 @@ DEFAULT_CONFIG = {
     "target_pct": 0.15,
 
     # Exit parameters
-    "trail_atr_mult": 3.5,          # widened from 2.5 to 3.5
-    "chandelier_lookback": 20,      # widened from 10 to 20
+    "trail_atr_mult": 3.5,
+    "chandelier_lookback": 20,
     "rsi_exit": 75,
 
     # Entry parameters
@@ -34,9 +33,10 @@ DEFAULT_CONFIG = {
     "ema_trend": 50,
     "ema_long": 200,
     "gap_min_pct": 0.002,
-    "support_tol_pct": 0.02,
     "rsi_entry_max": 70,
-    "adx_min": 15,
+    "adx_min": 20,                  # raised from 15 to 20
+    "volume_mult": 1.5,             # volume must be > 1.5x 20-day average
+    "volume_avg_period": 20,
 
     # Indicator parameters
     "rsi_period": 14,
@@ -101,13 +101,9 @@ def prepare(df, config):
     # MA gap
     df["ma_gap"] = df["ema5"] - df["ema20"]
 
-    # Swing low
-    swing_window = config.get("swing_window", 10)
-    df["swing_low"] = df["Low"].rolling(swing_window, min_periods=3).min()
-
-    # Fib 50%
-    swing_high = df["High"].rolling(20, min_periods=5).max()
-    df["fib_50"] = (swing_high + df["swing_low"]) / 2
+    # Volume average
+    vol_period = config.get("volume_avg_period", 20)
+    df["vol_avg"] = df["Volume"].rolling(vol_period, min_periods=5).mean()
 
     # Chandelier trailing stop (wide: 3.5x ATR, 20-bar lookback)
     lookback = config.get("chandelier_lookback", 20)
@@ -122,7 +118,16 @@ def prepare(df, config):
 
 def should_enter(last, config, prev=None):
     """
-    Entry: MA gap accelerating + MACD confirmation + support proximity.
+    Entry: MA gap accelerating + MACD + volume + strong trend.
+
+    1. Price above EMA200 (long-term uptrend)
+    2. EMA5 > EMA20 (short-term uptrend)
+    3. Gap widening (current gap > prev gap)
+    4. Gap is meaningfully positive (> gap_min_pct of price)
+    5. MACD line > signal line, histogram > 0
+    6. Volume > 1.5x 20-day average (momentum needs volume)
+    7. RSI not overbought (< rsi_entry_max)
+    8. ADX >= 20 (stronger trend filter)
     """
     if pd.isna(last.get("ema200")) or pd.isna(last.get("atr")) or pd.isna(last.get("adx")):
         return False
@@ -145,27 +150,24 @@ def should_enter(last, config, prev=None):
     if not last.get("gap_widening", False):
         return False
 
-    # 5 & 6. MACD confirmation
+    # 5. MACD confirmation
     if pd.isna(last.get("macd")) or last["macd"] <= last["macd_signal"]:
         return False
     if last.get("macd_hist", 0) <= 0:
         return False
 
-    # 7. Support proximity
-    support_tol = close * config.get("support_tol_pct", 0.02)
-    near_ema20 = abs(close - last["ema20"]) < support_tol
-    near_ema50 = abs(close - last["ema50"]) < support_tol * 1.5
-    near_swing = abs(close - last.get("swing_low", close)) < support_tol * 1.5
-    near_fib = abs(close - last.get("fib_50", close)) < support_tol * 1.5
-    if not (near_ema20 or near_ema50 or near_swing or near_fib):
+    # 6. Volume confirmation — momentum needs volume
+    vol_mult = config.get("volume_mult", 1.5)
+    vol_avg = last.get("vol_avg", 0)
+    if vol_avg <= 0 or last.get("Volume", 0) < vol_avg * vol_mult:
         return False
 
-    # 8. RSI not overbought
+    # 7. RSI not overbought
     if last.get("rsi", 50) > config.get("rsi_entry_max", 70):
         return False
 
-    # 9. ADX trend strength
-    if last.get("adx", 0) < config.get("adx_min", 15):
+    # 8. ADX trend strength (raised to 20)
+    if last.get("adx", 0) < config.get("adx_min", 20):
         return False
 
     return True
@@ -173,18 +175,18 @@ def should_enter(last, config, prev=None):
 
 def should_exit(last, config, prev=None):
     """
-    Exit logic (v3 — simplified, only 2 signal exits):
-    1. Chandelier trailing stop (wide: 3.5x ATR, 20-bar)
+    Exit logic (v4 — same as v3):
+    1. Chandelier trailing stop (3.5x ATR, 20-bar)
     2. RSI overbought (> 75)
     """
     if pd.isna(last.get("atr")) or pd.isna(last.get("chandelier_stop")):
         return False
 
-    # 1. Chandelier trailing stop — primary exit
+    # 1. Chandelier trailing stop
     if last["Close"] < last["chandelier_stop"]:
         return True
 
-    # 2. RSI overbought — take profit
+    # 2. RSI overbought
     if last.get("rsi", 50) > config.get("rsi_exit", 75):
         return True
 
