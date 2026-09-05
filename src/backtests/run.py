@@ -1,12 +1,9 @@
 """
 Unified backtest runner — works with any strategy module.
 
-Tests a strategy on any stock basket and prints results using the
-common reporting module. Supports running multiple strategies or
-multiple parameter sets side-by-side.
-
 Usage:
-    python -m backtests.run --strategy supertrend --basket nifty50
+    python -m backtests.run --strategy reversal --basket nifty50
+    python -m backtests.run --strategy bb_squeeze --basket midcap
     python -m backtests.run --compare --basket midcap
 """
 
@@ -20,7 +17,6 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 
-# Ensure src/ is on the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.data import fetch_yfinance, NIFTY_50, MIDCAP_75
@@ -30,12 +26,13 @@ from common.reporting import (
     print_exit_reasons, print_per_stock
 )
 
-# Import and register ALL strategies
 import strategies.breakout as _breakout
 import strategies.enhanced_breakout as _enhanced_breakout
 import strategies.positional_pullback as _positional_pullback
 import strategies.momentum_acceleration as _momentum_acceleration
 import strategies.supertrend as _supertrend
+import strategies.reversal as _reversal
+import strategies.bb_squeeze as _bb_squeeze
 
 STRATEGIES = {
     "breakout": _breakout,
@@ -43,6 +40,8 @@ STRATEGIES = {
     "positional_pullback": _positional_pullback,
     "momentum_acceleration": _momentum_acceleration,
     "supertrend": _supertrend,
+    "reversal": _reversal,
+    "bb_squeeze": _bb_squeeze,
 }
 
 BASKETS = {
