@@ -22,15 +22,15 @@ import numpy as np
 
 DEFAULT_CONFIG = {
     # Risk management
-    "stop_loss_pct": 0.08,          # 8% stop loss
-    "target_pct": 0.10,            # 10% target
+    "stop_loss_pct": 0.05,          # 5% stop (was 8% — tighter)          # 8% stop loss
+    "target_pct": 0.08,            # 8% target (was 10%)            # 10% target
 
     # Entry parameters
-    "min_5d_return": -0.05,         # stock must be down at least 5% in 5 days
-    "max_rsi_entry": 35,           # RSI must be oversold (< 35)
+    "min_5d_return": -0.03,         # stock down at least 3% in 5 days (was -5%)         # stock must be down at least 5% in 5 days
+    "max_rsi_entry": 40,           # RSI < 40 (was 35 — less extreme)           # RSI must be oversold (< 35)
     "ema_long": 200,               # must be above EMA200 (long-term uptrend intact)
     "max_gap_down": -0.10,         # skip if gap down > 10% (panic continuation)
-    "volume_spike_mult": 1.3,      # volume > 1.3x average (forced selling signature)
+    "volume_spike_mult": 1.0,      # remove volume filter (was 1.3x)      # volume > 1.3x average (forced selling signature)
     "volume_avg_period": 20,
 
     # Exit parameters

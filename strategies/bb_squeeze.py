@@ -29,11 +29,11 @@ DEFAULT_CONFIG = {
     # Bollinger Band parameters
     "bb_period": 20,               # BB period (standard: 20)
     "bb_std": 2.0,                 # BB standard deviations (standard: 2.0)
-    "squeeze_lookback": 125,        # 6-month lookback for squeeze detection (~125 trading days)
-    "min_squeeze_days": 3,          # bandwidth must be at min for >= 3 consecutive days
+    "squeeze_lookback": 60,         # 60-day lookback (was 125 — shorter window)        # 6-month lookback for squeeze detection (~125 trading days)
+    "min_squeeze_days": 1,          # just 1 day at min (was 3)          # bandwidth must be at min for >= 3 consecutive days
 
     # Volume confirmation
-    "volume_mult": 1.5,             # breakout volume > 1.5x average
+    "volume_mult": 1.0,             # remove volume filter (was 1.5x)             # breakout volume > 1.5x average
     "volume_avg_period": 20,
 
     # Exit parameters
@@ -114,8 +114,9 @@ def prepare(df, config):
     # EMA200 for trend context
     df["ema200"] = df["Close"].ewm(span=200).mean()
 
-    # Precomputed: close below mid band (for exit)
-    df["below_midband"] = df["Close"] < df["bb_mid"]
+    # ATR trailing stop (replaces midband exit — was too tight)
+    df["trail_max"] = df["High"].rolling(20, min_periods=5).max()
+    df["trail_stop"] = df["trail_max"] - 2.5 * df["atr"]
 
     return df
 
@@ -163,8 +164,8 @@ def should_exit(last, config, prev=None):
     if pd.isna(last.get("bb_mid")):
         return False
 
-    # 1. Close below middle band — breakout failed
-    if config.get("use_midband_exit", True) and last.get("below_midband", False):
+    # 1. ATR trailing stop — primary exit
+    if last["Close"] < last.get("trail_stop", 0):
         return True
 
     # 2. RSI overbought

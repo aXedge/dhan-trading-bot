@@ -1,0 +1,189 @@
+[
+  {
+    "symbol": "RELIANCE",
+    "entry": 1453.6463623046875,
+    "entry_date": "2025-06-20",
+    "sl": 1351.89,
+    "target": 1671.69,
+    "exit_price": 1470.9964599609375,
+    "exit_date": "2025-07-14",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.011935569823696488
+  },
+  {
+    "symbol": "ITC",
+    "entry": 405.9561767578125,
+    "entry_date": "2025-04-22",
+    "sl": 377.54,
+    "target": 466.85,
+    "exit_price": 396.5469055175781,
+    "exit_date": "2025-05-09",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.023178046742340388
+  },
+  {
+    "symbol": "MARUTI",
+    "entry": 12712.3291015625,
+    "entry_date": "2025-08-12",
+    "sl": 11822.47,
+    "target": 14619.18,
+    "exit_price": 13928.119140625,
+    "exit_date": "2025-08-18",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.09563865357395952
+  },
+  {
+    "symbol": "SUNPHARMA",
+    "entry": 1711.864501953125,
+    "entry_date": "2025-07-15",
+    "sl": 1592.03,
+    "target": 1968.64,
+    "exit_price": 1662.8125,
+    "exit_date": "2025-07-22",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.028654138161729438
+  },
+  {
+    "symbol": "POWERGRID",
+    "entry": 330.31158447265625,
+    "entry_date": "2024-09-24",
+    "sl": 307.19,
+    "target": 379.86,
+    "exit_price": 344.8432312011719,
+    "exit_date": "2024-09-26",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.043993754417410026
+  },
+  {
+    "symbol": "M&M",
+    "entry": 3126.1904296875,
+    "entry_date": "2025-06-20",
+    "sl": 2907.36,
+    "target": 3595.12,
+    "exit_price": 3041.26220703125,
+    "exit_date": "2025-07-11",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.027166682441907286
+  },
+  {
+    "symbol": "ONGC",
+    "entry": 242.57275390625,
+    "entry_date": "2025-06-16",
+    "sl": 225.59,
+    "target": 278.96,
+    "exit_price": 230.415283203125,
+    "exit_date": "2025-06-24",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.05011886334037187
+  },
+  {
+    "symbol": "DIVISLAB",
+    "entry": 4720.3291015625,
+    "entry_date": "2024-07-26",
+    "sl": 4389.91,
+    "target": 5428.38,
+    "exit_price": 4948.220703125,
+    "exit_date": "2024-08-02",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.04827875274354588
+  },
+  {
+    "symbol": "DIVISLAB",
+    "entry": 6750.7958984375,
+    "entry_date": "2025-06-30",
+    "sl": 6278.24,
+    "target": 7763.42,
+    "exit_price": 6673.46875,
+    "exit_date": "2025-07-18",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.011454523229682843
+  },
+  {
+    "symbol": "BAJAJFINSV",
+    "entry": 1649.0386962890625,
+    "entry_date": "2024-07-18",
+    "sl": 1533.61,
+    "target": 1896.39,
+    "exit_price": 1577.1351318359375,
+    "exit_date": "2024-07-24",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.04360332150781798
+  },
+  {
+    "symbol": "JSWSTEEL",
+    "entry": 1042.3131103515625,
+    "entry_date": "2025-07-31",
+    "sl": 969.35,
+    "target": 1198.66,
+    "exit_price": 1021.93017578125,
+    "exit_date": "2025-08-01",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.019555481330785073
+  },
+  {
+    "symbol": "SHRIRAMFIN",
+    "entry": 677.1956787109375,
+    "entry_date": "2025-06-06",
+    "sl": 629.79,
+    "target": 778.78,
+    "exit_price": 651.4656982421875,
+    "exit_date": "2025-06-18",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.03799489760142563
+  },
+  {
+    "symbol": "EICHERMOT",
+    "entry": 5185.84765625,
+    "entry_date": "2025-01-02",
+    "sl": 4822.84,
+    "target": 5963.72,
+    "exit_price": 5188.4365234375,
+    "exit_date": "2025-01-03",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.0004992177478217836
+  },
+  {
+    "symbol": "EICHERMOT",
+    "entry": 5366.9775390625,
+    "entry_date": "2025-06-19",
+    "sl": 4991.29,
+    "target": 6172.02,
+    "exit_price": 5412.8955078125,
+    "exit_date": "2025-07-14",
+    "exit_reason": "Signal exit",
+    "pnl_pct": 0.008555647646332598
+  },
+  {
+    "symbol": "HEROMOTOCO",
+    "entry": 4241.38037109375,
+    "entry_date": "2025-07-15",
+    "sl": 3944.48,
+    "target": 4877.59,
+    "exit_price": 4089.658447265625,
+    "exit_date": "2025-07-25",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.035771826752949196
+  },
+  {
+    "symbol": "BPCL",
+    "entry": 313.35418701171875,
+    "entry_date": "2025-06-11",
+    "sl": 291.42,
+    "target": 360.36,
+    "exit_price": 291.42,
+    "exit_date": "2025-06-13",
+    "exit_reason": "SL hit",
+    "pnl_pct": -0.06999806583372203
+  },
+  {
+    "symbol": "DMART",
+    "entry": 4228.39990234375,
+    "entry_date": "2025-06-18",
+    "sl": 3932.41,
+    "target": 4862.66,
+    "exit_price": 4213.0,
+    "exit_date": "2025-07-08",
+    "exit_reason": "Signal exit",
+    "pnl_pct": -0.003642016530937394
+  }
+]
