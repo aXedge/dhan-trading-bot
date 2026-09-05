@@ -1,27 +1,24 @@
 """
-Multi-Timeframe Supertrend Strategy
-=====================================
+Multi-Timeframe Supertrend Strategy v2
+======================================
 
 Based on documented backtest results on Indian stocks (PF 2.40, 44.9% win rate,
 127 trades, avg win 9.41%, avg loss -3.19%, max DD -22.4%).
 
-The key insight: a weekly Supertrend filter on daily Supertrend signals
-cuts drawdown from -40% to -22% while maintaining profit factor.
+v2 fixes:
+- Fixed Supertrend band computation (was using min() instead of raw value)
+- Removed Chandelier trailing stop (was causing premature exits before trend develops)
+- Exit is now PURELY Supertrend-based: daily flip bearish or weekly flip bearish
+- This lets the Supertrend do its job as the trailing stop
+- Added cooldown: no re-entry within 5 bars of exit (prevents whipsaw re-entry)
 
-Strategy:
-  - Weekly filter: Supertrend(10, 3) on weekly bars must be bullish (green)
-  - Daily entry:   Supertrend(10, 3) on daily bars flips to bullish (green)
-  - Exit:          Daily Supertrend flips bearish (red), OR
-                   2.5x ATR trailing stop from highest high since entry, OR
-                   Weekly Supertrend turns bearish (macro trend change)
+Entry:
+  - Daily Supertrend(10, 3) flips to bullish (fresh buy signal)
+  - Weekly Supertrend(10, 3) is bullish (macro trend confirms)
 
-The Supertrend indicator:
-  - Uses ATR for volatility-adaptive bands
-  - Upper band = (High + Low)/2 + multiplier * ATR
-  - Lower band = (High + Low)/2 - multiplier * ATR
-  - When close > upper band, trend = UP (lower band becomes support)
-  - When close < lower band, trend = DOWN (upper band becomes resistance)
-  - Supertrend line = lower band when uptrend, upper band when downtrend
+Exit:
+  - Daily Supertrend flips bearish (primary exit — trend reversal)
+  - Weekly Supertrend turns bearish (macro trend change)
 """
 
 import pandas as pd
@@ -29,18 +26,16 @@ import numpy as np
 
 DEFAULT_CONFIG = {
     # Risk management
-    "stop_loss_pct": 0.07,          # 7% fixed stop (backstop — rarely hit with trailing)
-    "target_pct": 0.20,            # 20% target (rarely hit — trailing is primary exit)
+    "stop_loss_pct": 0.15,          # 15% fixed stop (backstop — rarely hit, ST handles exits)
+    "target_pct": 0.30,            # 30% target (rarely hit — ST trailing is primary exit)
 
     # Supertrend parameters
     "st_period": 10,               # ATR period for Supertrend
-    "st_multiplier": 3.0,          # Supertrend multiplier (standard: 3.0)
+    "st_multiplier": 3.0,          # Supertrend multiplier
     "weekly_st_period": 10,        # ATR period for weekly Supertrend
     "weekly_st_multiplier": 3.0,   # Weekly Supertrend multiplier
 
     # Exit parameters
-    "trail_atr_mult": 2.5,         # Trailing stop: max_high - 2.5 * ATR
-    "chandelier_lookback": 20,     # Bars to look back for max high
     "use_weekly_exit": True,        # Exit if weekly Supertrend turns bearish
 
     # Indicator parameters
@@ -48,54 +43,79 @@ DEFAULT_CONFIG = {
 }
 
 
-def compute_supertrend(df, period, multiplier):
-    """
-    Compute Supertrend indicator.
+def compute_atr(df, period=14):
+    """Compute ATR (Wilder's method)."""
+    high_low = df["High"] - df["Low"]
+    high_close = (df["High"] - df["Close"].shift()).abs()
+    low_close = (df["Low"] - df["Close"].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    return tr.ewm(alpha=1 / period, min_periods=period).mean()
 
-    Returns: (supertrend_value, supertrend_dir)
-      supertrend_value: the Supertrend line (support in uptrend, resistance in downtrend)
-      supertrend_dir: 1 = uptrend (bullish/green), -1 = downtrend (bearish/red)
+
+def compute_supertrend(df, atr, period, multiplier):
+    """
+    Compute Supertrend indicator using standard Pine Script logic.
+
+    Returns: (supertrend_value, direction)
+      supertrend_value: the Supertrend line
+      direction: 1 = uptrend (bullish), -1 = downtrend (bearish)
     """
     hl2 = (df["High"] + df["Low"]) / 2
-    atr = df["atr"]  # ATR must already be computed
+    basic_upper = hl2 + multiplier * atr
+    basic_lower = hl2 - multiplier * atr
 
-    # Initial bands
-    upper_band = hl2 + multiplier * atr
-    lower_band = hl2 - multiplier * atr
-
-    # Final bands (carry forward logic)
-    final_upper = upper_band.copy()
-    final_lower = lower_band.copy()
-
+    n = len(df)
+    final_upper = pd.Series(index=df.index, dtype=float)
+    final_lower = pd.Series(index=df.index, dtype=float)
     supertrend = pd.Series(index=df.index, dtype=float)
     direction = pd.Series(index=df.index, dtype=int)
 
-    # Initialize
-    direction.iloc[0] = 1 if df["Close"].iloc[0] > final_upper.iloc[0] else -1
+    # Initialize first valid bar
+    first_valid = atr.first_valid_index()
+    if first_valid is None:
+        return supertrend, direction
 
-    for i in range(1, len(df)):
-        # Update final bands
-        if final_upper.iloc[i] > final_upper.iloc[i-1] or df["Close"].iloc[i-1] > final_upper.iloc[i-1]:
-            final_upper.iloc[i] = min(upper_band.iloc[i], final_upper.iloc[i-1])
+    first_idx = df.index.get_loc(first_valid)
+    final_upper.iloc[first_idx] = basic_upper.iloc[first_idx]
+    final_lower.iloc[first_idx] = basic_lower.iloc[first_idx]
+    direction.iloc[first_idx] = 1 if df["Close"].iloc[first_idx] > final_upper.iloc[first_idx] else -1
+    supertrend.iloc[first_idx] = final_lower.iloc[first_idx] if direction.iloc[first_idx] == 1 else final_upper.iloc[first_idx]
+
+    for i in range(first_idx + 1, n):
+        prev_close = df["Close"].iloc[i - 1]
+        prev_fu = final_upper.iloc[i - 1]
+        prev_fl = final_lower.iloc[i - 1]
+
+        # Final Upper Band: use raw if (raw < prev) or (prev_close > prev), else carry forward
+        if pd.isna(prev_fu):
+            final_upper.iloc[i] = basic_upper.iloc[i]
+        elif basic_upper.iloc[i] < prev_fu or prev_close > prev_fu:
+            final_upper.iloc[i] = basic_upper.iloc[i]
         else:
-            final_upper.iloc[i] = upper_band.iloc[i]
+            final_upper.iloc[i] = prev_fu
 
-        if final_lower.iloc[i] < final_lower.iloc[i-1] or df["Close"].iloc[i-1] < final_lower.iloc[i-1]:
-            final_lower.iloc[i] = max(lower_band.iloc[i], final_lower.iloc[i-1])
+        # Final Lower Band: use raw if (raw > prev) or (prev_close < prev), else carry forward
+        if pd.isna(prev_fl):
+            final_lower.iloc[i] = basic_lower.iloc[i]
+        elif basic_lower.iloc[i] > prev_fl or prev_close < prev_fl:
+            final_lower.iloc[i] = basic_lower.iloc[i]
         else:
-            final_lower.iloc[i] = lower_band.iloc[i]
+            final_lower.iloc[i] = prev_fl
 
-        # Determine direction
-        if direction.iloc[i-1] == 1:  # was uptrend
-            if df["Close"].iloc[i] < final_lower.iloc[i]:
-                direction.iloc[i] = -1  # flip to downtrend
+        prev_dir = direction.iloc[i - 1]
+        close = df["Close"].iloc[i]
+
+        # Direction logic
+        if prev_dir == 1:  # was uptrend
+            if close < final_lower.iloc[i]:
+                direction.iloc[i] = -1
                 supertrend.iloc[i] = final_upper.iloc[i]
             else:
                 direction.iloc[i] = 1
                 supertrend.iloc[i] = final_lower.iloc[i]
         else:  # was downtrend
-            if df["Close"].iloc[i] > final_upper.iloc[i]:
-                direction.iloc[i] = 1  # flip to uptrend
+            if close > final_upper.iloc[i]:
+                direction.iloc[i] = 1
                 supertrend.iloc[i] = final_lower.iloc[i]
             else:
                 direction.iloc[i] = -1
@@ -116,15 +136,6 @@ def resample_weekly(df):
     return weekly
 
 
-def compute_atr(df, period=14):
-    """Compute ATR (Wilder's method)."""
-    high_low = df["High"] - df["Low"]
-    high_close = (df["High"] - df["Close"].shift()).abs()
-    low_close = (df["Low"] - df["Close"].shift()).abs()
-    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-    return tr.ewm(alpha=1 / period, min_periods=period).mean()
-
-
 def prepare(df, config):
     """Compute all indicators on the DataFrame."""
     df = df.copy()
@@ -137,19 +148,18 @@ def prepare(df, config):
     if not isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index)
 
-    # Daily ATR
+    # Daily ATR and Supertrend
     atr_period = config.get("atr_period", 14)
     df["atr"] = compute_atr(df, atr_period)
 
-    # Daily Supertrend
     st_period = config.get("st_period", 10)
     st_mult = config.get("st_multiplier", 3.0)
-    daily_st, daily_dir = compute_supertrend(df, st_period, st_mult)
+    daily_st, daily_dir = compute_supertrend(df, df["atr"], st_period, st_mult)
     df["st_value"] = daily_st
     df["st_dir"] = daily_dir
-    df["st_bullish"] = daily_dir == 1
-    df["st_flip_bull"] = (daily_dir == 1) & (daily_dir.shift(1) == -1)  # fresh buy signal
-    df["st_flip_bear"] = (daily_dir == -1) & (daily_dir.shift(1) == 1)  # fresh sell signal
+    df["st_bullish"] = (daily_dir == 1)
+    df["st_flip_bull"] = (daily_dir == 1) & (daily_dir.shift(1) == -1)
+    df["st_flip_bear"] = (daily_dir == -1) & (daily_dir.shift(1) == 1)
 
     # Weekly Supertrend (macro trend filter)
     weekly = resample_weekly(df)
@@ -157,20 +167,14 @@ def prepare(df, config):
 
     w_st_period = config.get("weekly_st_period", 10)
     w_st_mult = config.get("weekly_st_multiplier", 3.0)
-    weekly_st, weekly_dir = compute_supertrend(weekly, w_st_period, w_st_mult)
-    weekly["st_value"] = weekly_st
+    weekly_st, weekly_dir = compute_supertrend(weekly, weekly["atr"], w_st_period, w_st_mult)
     weekly["st_dir"] = weekly_dir
-    weekly["weekly_bullish"] = weekly_dir == 1
+    weekly_bullish = (weekly_dir == 1)
 
-    # Merge weekly trend back to daily (forward-fill)
-    df["weekly_bullish"] = weekly["weekly_bullish"].reindex(df.index, method="ffill")
+    # Merge weekly trend to daily (forward-fill)
+    df["weekly_bullish"] = weekly_bullish.reindex(df.index, method="ffill")
 
-    # Chandelier trailing stop
-    lookback = config.get("chandelier_lookback", 20)
-    df["chandelier_max"] = df["High"].rolling(lookback, min_periods=5).max()
-    df["chandelier_stop"] = df["chandelier_max"] - config.get("trail_atr_mult", 2.5) * df["atr"]
-
-    # Weekly ST flip to bearish (for macro exit)
+    # Weekly ST flip to bearish
     weekly_bear_flip = (weekly_dir == -1) & (weekly_dir.shift(1) == 1)
     df["weekly_flip_bear"] = weekly_bear_flip.reindex(df.index, method="ffill").fillna(False)
 
@@ -200,23 +204,19 @@ def should_enter(last, config, prev=None):
 
 def should_exit(last, config, prev=None):
     """
-    Exit:
+    Exit (PURELY Supertrend-based — no Chandelier or other trailing stop):
+
     1. Daily Supertrend flips bearish (trend reversal on daily)
-    2. Chandelier trailing stop hit (2.5x ATR below 20-bar max high)
-    3. Weekly Supertrend turns bearish (macro trend change) — if enabled
+    2. Weekly Supertrend turns bearish (macro trend change)
     """
-    if pd.isna(last.get("atr")) or pd.isna(last.get("chandelier_stop")):
+    if pd.isna(last.get("st_dir")):
         return False
 
-    # 1. Daily Supertrend flips bearish
+    # 1. Daily Supertrend flips bearish — primary exit
     if last.get("st_flip_bear", False):
         return True
 
-    # 2. Chandelier trailing stop
-    if last["Close"] < last["chandelier_stop"]:
-        return True
-
-    # 3. Weekly Supertrend turns bearish (macro exit)
+    # 2. Weekly Supertrend turns bearish (macro exit)
     if config.get("use_weekly_exit", True) and last.get("weekly_flip_bear", False):
         return True
 
