@@ -44,8 +44,12 @@ PRICE_CACHE_DIR = os.path.join(REPO_ROOT, "data", "price_cache")
 NIFTY50_CSV_URL = "https://archives.nseindia.com/content/indices/ind_nifty50list.csv"
 MIDCAP100_CSV_URL = "https://archives.nseindia.com/content/indices/ind_niftymidcap100list.csv"
 
-MIN_TRADES_PER_STOCK = 5
-MIN_BLENDED_PF = 1.0
+# Statistical filters — prevent inflated PF from small samples
+MIN_TOTAL_TRADES = 10        # Need enough total trades for significance
+MIN_TRADES_PER_STRATEGY = 3  # At least 3 trades in each strategy
+MIN_BLENDED_PF = 1.2         # Must be meaningfully profitable
+MAX_PF_CAP = 10.0            # Cap individual strategy PF at 10 (prevents infinity artifacts)
+MIN_PRICE_HISTORY_DAYS = 250 # ~1 year of trading days — exclude recent IPOs
 MAX_BASKET_SIZE = 30
 
 REVERSAL_CONFIG = {
@@ -234,6 +238,7 @@ def backtest(df, config, prepare_fn, enter_fn, exit_fn):
 
 
 def calc_metrics(trades):
+    """Calculate metrics with PF capped at MAX_PF_CAP to prevent infinity artifacts."""
     if not trades:
         return {'trades': 0, 'pf': 0, 'win_rate': 0}
     pnls = [t['pnl_pct'] for t in trades]
@@ -241,10 +246,16 @@ def calc_metrics(trades):
     losses = [p for p in pnls if p <= 0]
     gross_profit = sum(wins) if wins else 0
     gross_loss = abs(sum(losses)) if losses else 0
-    pf = gross_profit / gross_loss if gross_loss > 0 else 999.0
+    if gross_loss > 0:
+        pf = gross_profit / gross_loss
+    elif gross_profit > 0:
+        pf = MAX_PF_CAP  # All wins, no losses — cap instead of infinity
+    else:
+        pf = 0
+    pf = min(pf, MAX_PF_CAP)
     return {
         'trades': len(trades),
-        'pf': round(min(pf, 999), 2),
+        'pf': round(pf, 2),
         'win_rate': round(len(wins) / len(trades) * 100, 1),
         'avg_pnl': round(np.mean(pnls), 2),
     }
@@ -255,7 +266,6 @@ def calc_metrics(trades):
 # ========================================
 def fetch_nse_constituents(url):
     """Download NSE index constituent CSV. Falls back gracefully on SSL errors."""
-    # Try with requests first (handles SSL better)
     try:
         import requests
         resp = requests.get(url, timeout=15, verify=False,
@@ -268,9 +278,9 @@ def fetch_nse_constituents(url):
     except Exception:
         pass
 
-    # Try with urllib + unverified SSL context
     try:
         import ssl
+        import urllib.request
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -293,24 +303,14 @@ def fetch_nse_constituents(url):
 def get_constituents():
     """Get NIFTY 50 + Midcap 100 constituents, with fallback to hardcoded lists."""
     print("\n1. Fetching NSE constituent lists...")
-    try:
-        nifty50 = fetch_nse_constituents(NIFTY50_CSV_URL)
-        print(f"   NIFTY 50: {len(nifty50)} stocks")
-    except Exception as e:
-        print(f"   NIFTY 50 fetch failed: {e}")
-        nifty50 = []
-
-    try:
-        midcap100 = fetch_nse_constituents(MIDCAP100_CSV_URL)
-        print(f"   NIFTY Midcap 100: {len(midcap100)} stocks")
-    except Exception as e:
-        print(f"   Midcap 100 fetch failed: {e}")
-        midcap100 = []
-
+    nifty50 = fetch_nse_constituents(NIFTY50_CSV_URL)
+    print(f"   NIFTY 50: {len(nifty50)} stocks")
     if not nifty50:
         print(f"   Using fallback NIFTY 50 list ({len(NIFTY50_FALLBACK)} stocks)")
         nifty50 = NIFTY50_FALLBACK
 
+    midcap100 = fetch_nse_constituents(MIDCAP100_CSV_URL)
+    print(f"   NIFTY Midcap 100: {len(midcap100)} stocks")
     if not midcap100:
         print(f"   Using fallback Midcap 100 list ({len(MIDCAP100_FALLBACK)} stocks)")
         midcap100 = MIDCAP100_FALLBACK
@@ -370,10 +370,18 @@ def main():
     # Step 2: Fetch price data and backtest
     print(f"\n2. Fetching price data & backtesting {len(all_symbols)} stocks...")
     results = []
+    skipped_ipo = 0
+    skipped_trades = 0
 
     for i, sym in enumerate(all_symbols):
         df = fetch_price_data(sym)
         if len(df) < 100:
+            continue
+
+        # Filter: exclude stocks with < 1 year of price history (IPOs)
+        if len(df) < MIN_PRICE_HISTORY_DAYS:
+            skipped_ipo += 1
+            print(f"   SKIP {sym}: only {len(df)} bars (~{len(df)//252:.1f}y) — likely recent IPO")
             continue
 
         rev_trades = backtest(df, REVERSAL_CONFIG, prepare_reversal, should_enter_reversal, should_exit_reversal)
@@ -383,14 +391,23 @@ def main():
         pb_m = calc_metrics(pb_trades)
 
         total_trades = rev_m['trades'] + pb_m['trades']
-        if total_trades < MIN_TRADES_PER_STOCK:
+
+        # Filter: need enough total trades
+        if total_trades < MIN_TOTAL_TRADES:
+            skipped_trades += 1
             continue
 
+        # Filter: each strategy needs at least 3 trades
+        if rev_m['trades'] < MIN_TRADES_PER_STRATEGY and pb_m['trades'] < MIN_TRADES_PER_STRATEGY:
+            skipped_trades += 1
+            continue
+
+        # Blended PF (both PFs already capped at MAX_PF_CAP by calc_metrics)
         blended_pf = (rev_m['pf'] * rev_m['trades'] + pb_m['pf'] * pb_m['trades']) / max(total_trades, 1)
-        blended_pf = min(blended_pf, 999)
 
         results.append({
             'symbol': sym,
+            'price_bars': len(df),
             'rev_trades': rev_m['trades'],
             'rev_pf': rev_m['pf'],
             'rev_win': rev_m['win_rate'],
@@ -406,34 +423,46 @@ def main():
 
         time.sleep(1.5)
 
+    print(f"   Skipped {skipped_ipo} IPOs (< {MIN_PRICE_HISTORY_DAYS} bars), "
+          f"{skipped_trades} stocks with < {MIN_TOTAL_TRADES} trades")
+
     # Step 3: Rank and select
     print(f"\n3. Ranking {len(results)} stocks by blended PF...")
     results.sort(key=lambda x: x['blended_pf'], reverse=True)
 
     qualified = [r for r in results if r['blended_pf'] >= MIN_BLENDED_PF]
-    print(f"   Qualified (PF >= {MIN_BLENDED_PF}): {len(qualified)} stocks")
+    print(f"   Qualified (blended PF >= {MIN_BLENDED_PF}, PF capped at {MAX_PF_CAP}, "
+          f"min {MIN_TOTAL_TRADES} trades): {len(qualified)} stocks")
 
     selected = qualified[:MAX_BASKET_SIZE]
 
     print(f"\n   Selected {len(selected)} stocks for curated basket:")
     for i, s in enumerate(selected):
         print(f"   {i+1:3d}. {s['symbol']:15s} | Blended PF: {s['blended_pf']:6.2f} "
-              f"| Rev: {s['rev_trades']}t PF{s['rev_pf']} | PB: {s['pb_trades']}t PF{s['pb_pf']}")
+              f"| Rev: {s['rev_trades']}t PF{s['rev_pf']} | PB: {s['pb_trades']}t PF{s['pb_pf']} "
+              f"| {s['price_bars']} bars")
 
-    # Step 4: Save
+    # Step 4: Save (atomic write)
     basket_data = {
         'date': str(date.today()),
         'total_universe': len(all_symbols),
         'total_tested': len(results),
         'total_qualified': len(qualified),
+        'skipped_ipo': skipped_ipo,
+        'skipped_low_trades': skipped_trades,
         'basket_size': len(selected),
+        'filters': {
+            'min_total_trades': MIN_TOTAL_TRADES,
+            'min_trades_per_strategy': MIN_TRADES_PER_STRATEGY,
+            'min_blended_pf': MIN_BLENDED_PF,
+            'max_pf_cap': MAX_PF_CAP,
+            'min_price_history_days': MIN_PRICE_HISTORY_DAYS,
+        },
         'stocks': [s['symbol'] for s in selected],
         'details': selected,
     }
 
     os.makedirs(os.path.dirname(BASKET_OUTPUT), exist_ok=True)
-
-    # Atomic write
     fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(BASKET_OUTPUT), suffix=".tmp")
     try:
         with os.fdopen(fd, 'w') as f:
@@ -454,7 +483,8 @@ def main():
         if token and chat_id:
             msg = f"\U0001F504 *Basket Refreshed*\n\n"
             msg += f"Universe: {len(all_symbols)} stocks\n"
-            msg += f"Qualified: {len(qualified)} (PF >= 1.0)\n"
+            msg += f"Tested: {len(results)} (skipped {skipped_ipo} IPOs)\n"
+            msg += f"Qualified: {len(qualified)} (PF >= {MIN_BLENDED_PF})\n"
             msg += f"Selected: {len(selected)} stocks\n\n"
             msg += f"Top 5:\n"
             for s in selected[:5]:
@@ -462,7 +492,7 @@ def main():
             requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
                 json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
-                timeout=10
+                timeout=10, verify=False
             )
             print("   Telegram alert sent")
     except Exception:
