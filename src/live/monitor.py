@@ -17,11 +17,13 @@ Usage:
 import json
 import os
 import sys
+import tempfile
 from datetime import date, datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, SRC_DIR)
+sys.path.insert(0, os.path.dirname(SRC_DIR))  # repo root for strategies/
 
 import pandas as pd
 import numpy as np
@@ -29,7 +31,6 @@ import yfinance as yf
 
 PAPER_POSITIONS_FILE = os.path.join(SRC_DIR, "..", "data", "paper_positions.json")
 
-# Import strategies for exit logic
 import strategies.reversal as reversal
 import strategies.positional_pullback as pullback
 
@@ -46,14 +47,21 @@ def load_positions():
     return {"positions": [], "closed_trades": []}
 
 
-def save_positions(data):
+def save_positions_atomic(data):
+    """Atomic write — write to temp file then rename, prevents corruption."""
     os.makedirs(os.path.dirname(PAPER_POSITIONS_FILE), exist_ok=True)
-    with open(PAPER_POSITIONS_FILE, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(PAPER_POSITIONS_FILE), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+        os.replace(tmp_path, PAPER_POSITIONS_FILE)
+    except:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 def fetch_current_price(symbol):
-    """Fetch current/closing price for a symbol."""
     try:
         ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
         df = yf.download(ticker, period="5d", auto_adjust=True, progress=False)
@@ -67,16 +75,10 @@ def fetch_current_price(symbol):
 
 
 def check_exit(position, current_price, df=None):
-    """Check if position should be exited. Returns (should_exit, reason, exit_price)."""
-    # 1. Stop loss
     if current_price <= position["stop_loss"]:
         return True, "SL hit", position["stop_loss"]
-
-    # 2. Target
     if current_price >= position["target"]:
         return True, "Target hit", position["target"]
-
-    # 3. Signal exit (strategy-specific)
     strategy_name = position.get("strategy", "")
     module = STRATEGY_MAP.get(strategy_name)
     if module and df is not None and len(df) > 5:
@@ -88,7 +90,6 @@ def check_exit(position, current_price, df=None):
                 return True, "Signal exit", current_price
         except Exception as e:
             print(f"  {position['symbol']}: exit check error - {e}")
-
     return False, None, None
 
 
@@ -149,12 +150,10 @@ def main():
         else:
             print(f"holding @ ₹{price:.2f} (P&L: {pnl_pct:+.1f}%)")
 
-    # Save
     data["positions"] = [p for p in positions if p.get("status") == "OPEN"]
     data["closed_trades"] = closed
-    save_positions(data)
+    save_positions_atomic(data)
 
-    # Telegram alert for exits
     if exits:
         alert = f"📊 *Exit Alert*\n\n"
         for e in exits:
@@ -163,7 +162,6 @@ def main():
             alert += f"P&L: {e['pnl_pct']:+.1f}% (₹{e['pnl_rs']:+,.0f})\n\n"
         send_telegram_alert(alert)
 
-    # Summary
     total_pnl = sum(c.get("pnl_rs", 0) for c in closed)
     win_count = sum(1 for c in closed if c.get("pnl_pct", 0) > 0)
     print(f"\n{'='*60}")

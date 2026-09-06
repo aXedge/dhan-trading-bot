@@ -24,6 +24,7 @@ from datetime import datetime, date
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, SRC_DIR)
+sys.path.insert(0, os.path.dirname(SRC_DIR))  # repo root for strategies/
 
 import pandas as pd
 import numpy as np

@@ -3,7 +3,7 @@
 Live Executor — Paper Trading
 ================================
 
-Reads signals from scanner output and executes paper trades via Dhan API.
+Reads signals from scanner output and executes paper trades.
 In PAPER mode, logs trades to a local JSON file without placing real orders.
 In LIVE mode, places real market orders via Dhan.
 
@@ -20,57 +20,67 @@ Environment variables:
 import json
 import os
 import sys
+import tempfile
 from datetime import date, datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, SRC_DIR)
+# Also add repo root so strategies/ is importable
+sys.path.insert(0, os.path.dirname(SRC_DIR))
 
-# Paper trading state file
 PAPER_POSITIONS_FILE = os.path.join(SRC_DIR, "..", "data", "paper_positions.json")
 SIGNALS_FILE = os.path.join(SRC_DIR, "..", "data", "signals_today.json")
 
-# Capital management
 CAPITAL_PER_POSITION = 25000
 MAX_POSITIONS_PER_STRATEGY = 4
 MAX_TOTAL_POSITIONS = 8
 
 
 def load_positions():
-    """Load current open positions."""
     if os.path.exists(PAPER_POSITIONS_FILE):
         with open(PAPER_POSITIONS_FILE) as f:
             return json.load(f)
     return {"positions": [], "closed_trades": []}
 
 
-def save_positions(data):
-    """Save positions to file."""
+def save_positions_atomic(data):
+    """Atomic write — write to temp file then rename, prevents corruption."""
     os.makedirs(os.path.dirname(PAPER_POSITIONS_FILE), exist_ok=True)
-    with open(PAPER_POSITIONS_FILE, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(PAPER_POSITIONS_FILE), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+        os.replace(tmp_path, PAPER_POSITIONS_FILE)
+    except:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 def load_signals():
-    """Load today's signals from scanner."""
-    if os.path.exists(SIGNALS_FILE):
-        with open(SIGNALS_FILE) as f:
-            return json.load(f).get("signals", [])
-    return []
+    if not os.path.exists(SIGNALS_FILE):
+        return []
+    with open(SIGNALS_FILE) as f:
+        data = json.load(f)
+    signal_date = data.get("date", "")
+    today = str(date.today())
+    # CRITICAL FIX: Only execute signals from today — skip stale signals
+    if signal_date != today:
+        print(f"  WARNING: Signals are from {signal_date}, today is {today}. Skipping stale signals.")
+        return []
+    return data.get("signals", [])
 
 
 def count_positions_by_strategy(positions, strategy):
-    """Count open positions for a given strategy."""
     return sum(1 for p in positions if p.get("strategy") == strategy and p.get("status") == "OPEN")
 
 
 def get_open_symbols(positions):
-    """Get set of symbols that already have open positions."""
     return {p["symbol"] for p in positions if p.get("status") == "OPEN"}
 
 
 def execute_paper_trade(signal):
-    """Execute a paper trade — log it without real order."""
     return {
         "strategy": signal["strategy"],
         "symbol": signal["symbol"],
@@ -87,7 +97,6 @@ def execute_paper_trade(signal):
 
 
 def send_telegram_alert(message):
-    """Send Telegram alert (if configured)."""
     try:
         import requests
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -99,7 +108,7 @@ def send_telegram_alert(message):
                 timeout=10
             )
     except Exception:
-        pass  # Non-critical
+        pass
 
 
 def main():
@@ -110,27 +119,26 @@ def main():
 
     signals = load_signals()
     if not signals:
-        print("No signals found. Run scanner.py first.")
+        print("No fresh signals for today. Run scanner.py first.")
         return
 
     data = load_positions()
     positions = data["positions"]
     open_symbols = get_open_symbols(positions)
 
-    print(f"Current open positions: {len([p for p in positions if p.get('status') == 'OPEN'])}")
-    print(f"Signals to process: {len(signals)}\n")
+    open_count = sum(1 for p in positions if p.get("status") == "OPEN")
+    print(f"Current open positions: {open_count}")
+    print(f"Fresh signals to process: {len(signals)}\n")
 
     new_trades = []
     for signal in signals:
         sym = signal["symbol"]
         strat = signal["strategy"]
 
-        # Skip if already in position for this symbol
         if sym in open_symbols:
             print(f"  SKIP {sym} — already in open position")
             continue
 
-        # Check position limits
         total_open = sum(1 for p in positions if p.get("status") == "OPEN")
         strat_open = count_positions_by_strategy(positions, strat)
 
@@ -142,7 +150,6 @@ def main():
             print(f"  SKIP {sym} — max {strat} positions ({MAX_POSITIONS_PER_STRATEGY}) reached")
             continue
 
-        # Execute trade
         if mode == "PAPER":
             trade = execute_paper_trade(signal)
             positions.append(trade)
@@ -151,17 +158,11 @@ def main():
             print(f"  PAPER BUY [{strat.upper()}] {sym} @ ₹{trade['entry_price']} | "
                   f"Qty: {trade['quantity']} | SL: ₹{trade['stop_loss']} | Target: ₹{trade['target']}")
         elif mode == "LIVE":
-            # TODO: Implement live Dhan order placement
             print(f"  LIVE BUY [{strat.upper()}] {sym} — LIVE MODE NOT YET IMPLEMENTED")
-            # Placeholder: use dhan.dhan_api.place_order(...)
-        else:
-            print(f"  UNKNOWN MODE: {mode}")
 
-    # Save updated positions
     data["positions"] = positions
-    save_positions(data)
+    save_positions_atomic(data)
 
-    # Telegram alert
     if new_trades:
         alert = f"📊 *Paper Trading Alert*\n\n"
         for t in new_trades:
