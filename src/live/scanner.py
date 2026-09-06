@@ -1,94 +1,129 @@
 #!/usr/bin/env python3
 """
-Live Scanner — Dual Strategy Signal Generator
-================================================
+Live Scanner — Daily Signal Detection
+=======================================
 
-Runs daily (cron) to scan the curated basket for entry signals from both
-reversal and pullback strategies. Saves signals to JSON for the executor.
+Scans the curated basket for reversal and pullback entry signals.
+Outputs signals to data/signals_today.json for the executor to process.
 
-Single-pass script — no loops, no infinite waits. Designed for cron.
+Single-pass script — designed for cron. Runs at 3:00 PM IST.
 
 Usage:
     python src/live/scanner.py
-
-Output:
-    data/signals_today.json — list of entry signals with strategy, symbol, entry price, SL, target
 """
 
 import json
 import os
 import sys
-from datetime import datetime, date
+import tempfile
+from datetime import date, datetime
 
-# Add src to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
+REPO_ROOT = os.path.dirname(SRC_DIR)
 sys.path.insert(0, SRC_DIR)
-sys.path.insert(0, os.path.dirname(SRC_DIR))  # repo root for strategies/
+sys.path.insert(0, REPO_ROOT)
 
 import pandas as pd
-import numpy as np
 import yfinance as yf
+import warnings
+warnings.filterwarnings('ignore')
 
-# Import strategies
 import strategies.reversal as reversal
 import strategies.positional_pullback as pullback
 
-# Curated basket (optimized in parameter sweep)
-CURATED_BASKET = [
-    "EICHERMOT", "BHARTIARTL", "INFY", "ADANIPORTS", "HDFCBANK",
-    "HCLTECH", "CIPLA", "WIPRO", "TECHM", "TITAN", "ULTRACEMCO", "SUNPHARMA",
-]
+# ========================================
+# CONFIG
+# ========================================
+SIGNALS_FILE = os.path.join(REPO_ROOT, "data", "signals_today.json")
+BASKET_FILE = os.path.join(REPO_ROOT, "data", "basket_curated.json")
 
-# Extended basket (add more NIFTY 50 stocks for more signals)
-EXTENDED_BASKET = CURATED_BASKET + [
+# Fallback basket (used if basket_curated.json doesn't exist)
+FALLBACK_BASKET = [
+    "EICHERMOT", "BHARTIARTL", "INFY", "ADANIPORTS", "HDFCBANK", "HCLTECH",
+    "CIPLA", "WIPRO", "TECHM", "TITAN", "ULTRACEMCO", "SUNPHARMA",
     "ICICIBANK", "SBIN", "LT", "BAJFINANCE", "KOTAKBANK", "AXISBANK",
     "TATACONSUM", "GRASIM", "ADANIENT", "JSWSTEEL", "BRITANNIA", "DRREDDY",
-    "HDFCLIFE", "BAJAJFINSV", "DIVISLAB", "TATASTEEL", "BPCL", "COALINDIA",
-    "HEROMOTOCO", "SHRIRAMFIN", "DMART", "BAJAJ-AUTO", "NESTLEIND", "ONGC",
-    "NTPC", "POWERGRID", "LICI", "SBILIFE", "INDUSINDBK", "HINDUNILVR",
-    "ITC", "TCS", "MARUTI", "ASIANPAINT", "M&M", "TATAMOTORS",
+    "HDFCLIFE", "BAJAJFINSV", "DIVISLAB", "HEROMOTOCO", "TATASTEEL", "ITC",
+    "HINDUNILVR", "ASIANPAINT", "BPCL", "COALINDIA", "NTPC", "POWERGRID",
 ]
 
 
-def fetch_stock_data(symbol, period="1y"):
-    """Fetch recent OHLCV data for a single stock."""
+def load_basket():
+    """Load curated basket from JSON, fall back to hardcoded list."""
+    if os.path.exists(BASKET_FILE):
+        try:
+            with open(BASKET_FILE) as f:
+                data = json.load(f)
+            stocks = data.get("stocks", [])
+            if stocks:
+                return stocks
+        except Exception:
+            pass
+    return FALLBACK_BASKET
+
+
+def fetch_yfinance(symbol, period="6mo"):
+    """Fetch daily price data from yfinance."""
+    ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
+    df = yf.download(ticker, period=period, auto_adjust=True, progress=False)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
+
+
+def scan_stock(symbol, reversal_config, pullback_config):
+    """Scan a single stock for both reversal and pullback signals."""
+    df = fetch_yfinance(symbol)
+    if len(df) < 60:
+        return None
+
+    # Check reversal signal
     try:
-        ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
-        df = yf.download(ticker, period=period, auto_adjust=True, progress=False)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        if len(df) > 210:
-            return df
-    except Exception as e:
-        print(f"  {symbol}: fetch error - {e}")
-    return None
+        rev_df = reversal.prepare(df, reversal_config)
+        last = rev_df.iloc[-1]
+        if reversal.should_enter(last, reversal_config):
+            entry_price = float(last["Close"])
+            sl_pct = reversal_config["sl_pct"]
+            target_pct = reversal_config["target_pct"]
+            rsi = float(last.get("RSI", 0))
+            return {
+                "strategy": "reversal",
+                "symbol": symbol,
+                "entry_price": round(entry_price, 2),
+                "stop_loss": round(entry_price * (1 - sl_pct / 100), 2),
+                "target": round(entry_price * (1 + target_pct / 100), 2),
+                "stop_loss_pct": sl_pct,
+                "target_pct": target_pct,
+                "rsi": round(rsi, 1),
+                "date": str(date.today()),
+            }
+    except Exception:
+        pass
 
+    # Check pullback signal
+    try:
+        pb_df = pullback.prepare(df, pullback_config)
+        last = pb_df.iloc[-1]
+        if pullback.should_enter(last, pullback_config):
+            entry_price = float(last["Close"])
+            sl_pct = pullback_config["sl_pct"]
+            target_pct = pullback_config["target_pct"]
+            rsi = float(last.get("RSI", 0))
+            return {
+                "strategy": "pullback",
+                "symbol": symbol,
+                "entry_price": round(entry_price, 2),
+                "stop_loss": round(entry_price * (1 - sl_pct / 100), 2),
+                "target": round(entry_price * (1 + target_pct / 100), 2),
+                "stop_loss_pct": sl_pct,
+                "target_pct": target_pct,
+                "rsi": round(rsi, 1),
+                "date": str(date.today()),
+            }
+    except Exception:
+        pass
 
-def scan_strategy(symbol, df, strategy_module, strategy_name):
-    """Run strategy entry check on the latest bar."""
-    config = strategy_module.DEFAULT_CONFIG.copy()
-    prepared_df = strategy_module.prepare(df, config)
-
-    # Check entry on the last bar
-    last = prepared_df.iloc[-1]
-    prev = prepared_df.iloc[-2] if len(prepared_df) > 1 else None
-
-    if strategy_module.should_enter(last, config, prev):
-        close = float(last["Close"])
-        sl_price = close * (1 - config["stop_loss_pct"])
-        target_price = close * (1 + config["target_pct"])
-        return {
-            "strategy": strategy_name,
-            "symbol": symbol,
-            "date": str(last.name.date()),
-            "entry_price": round(close, 2),
-            "stop_loss": round(sl_price, 2),
-            "target": round(target_price, 2),
-            "stop_loss_pct": config["stop_loss_pct"],
-            "target_pct": config["target_pct"],
-            "rsi": round(float(last.get("rsi", 0)), 1) if not pd.isna(last.get("rsi")) else None,
-        }
     return None
 
 
@@ -97,46 +132,59 @@ def main():
     print(f"Live Scanner — {date.today()}")
     print(f"{'='*60}")
 
-    basket = EXTENDED_BASKET
+    basket = load_basket()
+    print(f"Scanning {len(basket)} stocks...\n")
+
+    reversal_config = reversal.DEFAULT_CONFIG.copy()
+    pullback_config = pullback.DEFAULT_CONFIG.copy()
+
     signals = []
+    import time
 
-    for i, symbol in enumerate(basket):
-        print(f"  Scanning {i+1}/{len(basket)}: {symbol}...", end=" ", flush=True)
+    for i, sym in enumerate(basket):
+        print(f"  Scanning {i+1}/{len(basket)}: {sym}...", end="", flush=True)
+        signal = scan_stock(sym, reversal_config, pullback_config)
 
-        df = fetch_stock_data(symbol)
-        if df is None:
-            print("SKIP (no data)")
-            continue
+        if signal:
+            signals.append(signal)
+            print(f" {signal['strategy'].upper()} SIGNAL! "
+                  f"Entry={signal['entry_price']} SL={signal['stop_loss']} "
+                  f"Target={signal['target']}")
+        else:
+            print(" no signal")
 
-        # Check reversal
-        rev_signal = scan_strategy(symbol, df, reversal, "reversal")
-        if rev_signal:
-            signals.append(rev_signal)
-            print(f"REVERSAL SIGNAL! Entry={rev_signal['entry_price']} SL={rev_signal['stop_loss']} Target={rev_signal['target']}")
-            continue
+        # Rate limit yfinance
+        time.sleep(0.5)
 
-        # Check pullback
-        pb_signal = scan_strategy(symbol, df, pullback, "pullback")
-        if pb_signal:
-            signals.append(pb_signal)
-            print(f"PULLBACK SIGNAL! Entry={pb_signal['entry_price']} SL={pb_signal['stop_loss']} Target={pb_signal['target']}")
-            continue
+    # Save signals (atomic write)
+    output = {
+        "date": str(date.today()),
+        "scan_time": datetime.now().isoformat(),
+        "basket_size": len(basket),
+        "signals_count": len(signals),
+        "signals": signals,
+    }
 
-        print("no signal")
-
-    # Save signals
-    signals_file = os.path.join(SRC_DIR, "..", "data", "signals_today.json")
-    os.makedirs(os.path.dirname(signals_file), exist_ok=True)
-    with open(signals_file, "w") as f:
-        json.dump({"date": str(date.today()), "signals": signals}, f, indent=2)
+    os.makedirs(os.path.dirname(SIGNALS_FILE), exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(SIGNALS_FILE), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(output, f, indent=2, default=str)
+        os.replace(tmp_path, SIGNALS_FILE)
+    except:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
     print(f"\n{'='*60}")
     print(f"Scan complete: {len(signals)} signals found")
-    print(f"Signals saved to {signals_file}")
+    print(f"Signals saved to {SIGNALS_FILE}")
+
     if signals:
-        print(f"\nSignals for today:")
+        print(f"\n# Signals for today:")
         for s in signals:
-            print(f"  [{s['strategy'].upper()}] {s['symbol']} @ {s['entry_price']} | SL={s['stop_loss']} | Target={s['target']} | RSI={s.get('rsi')}")
+            print(f"  [{s['strategy'].upper()}] {s['symbol']} @ {s['entry_price']} "
+                  f"| SL={s['stop_loss']} | Target={s['target']} | RSI={s['rsi']}")
     print(f"{'='*60}")
 
 
