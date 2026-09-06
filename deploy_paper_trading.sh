@@ -79,7 +79,7 @@ for sym in ['HDFCBANK', 'INFY', 'EICHERMOT']:
         else:
             print(f'  {sym}: no signal (OK)')
     else:
-        print(f'  {sym: no data')
+        print(f'  {sym}: no data')
 "
 
 echo ""
