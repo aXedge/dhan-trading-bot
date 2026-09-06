@@ -1,0 +1,39 @@
+#!/bin/bash
+# ============================================================
+# Cron Configuration for Paper Trading
+# ============================================================
+# Add these to crontab on the VM:
+#   crontab -e
+#
+# All scripts are single-pass (no loops) — safe for e2-micro with 1GB RAM
+# ============================================================
+
+SHELL=/bin/bash
+PATH=/home/kay22_ind/dhan-trading-bot/venv/bin:/usr/local/bin:/usr/bin:/bin
+PYTHONPATH=/home/kay22_ind/dhan-trading-bot/src
+
+# ============================================================
+# Paper Trading Cron Jobs
+# ============================================================
+
+# 1. Scanner — 3:00 PM (after market data settles, before close)
+#    Scans basket for entry signals from both strategies
+0 15 * * 1-5 cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && export PYTHONPATH=/home/kay22_ind/dhan-trading-bot/src && export TRADING_MODE=PAPER && python src/live/scanner.py >> logs/scanner.log 2>&1
+
+# 2. Executor — 3:05 PM (runs after scanner produces signals)
+#    Executes paper trades based on scanner output
+5 15 * * 1-5 cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && export PYTHONPATH=/home/kay22_ind/dhan-trading-bot/src && export TRADING_MODE=PAPER && python src/live/executor.py >> logs/executor.log 2>&1
+
+# 3. SL Monitor — every 15 min during market hours (9:30-15:15)
+#    Checks open positions for SL/target/signal exits
+*/15 9-15 * * 1-5 cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && export PYTHONPATH=/home/kay22_ind/dhan-trading-bot/src && export TRADING_MODE=PAPER && python src/live/monitor.py >> logs/monitor.log 2>&1
+
+# 4. EOD Report — 3:45 PM (after market close)
+#    Sends daily summary to Telegram
+45 15 * * 1-5 cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && export PYTHONPATH=/home/kay22_ind/dhan-trading-bot/src && python src/live/eod_report.py >> logs/eod_report.log 2>&1
+
+# ============================================================
+# Existing F&O Guard (keep running)
+# ============================================================
+# F&O P&L guard — every 10 min (already configured)
+*/10 * * * * cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && python futures_and_options/dhan_fno_pnl_guard.py >> logs/fno_guard.log 2>&1

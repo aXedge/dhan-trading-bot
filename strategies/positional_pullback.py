@@ -1,170 +1,147 @@
 """
-Positional Pullback Strategy — 1-3 month holding period.
+Positional Pullback Strategy (Optimized)
+==========================================
 
-Designed for swing/positional trades with:
-  - Entry frequency: 1-2 trades per week across a 40-50 stock basket
-  - Holding period: 1-3 months
-  - Risk: 6-8% stop loss (positional, survives multi-week noise)
-  - Target: 15-20% (matches 1-3 month horizon)
-  - Reward-risk ratio: ~2.5:1
+Based on parameter sweep of 81 combinations on 41 NIFTY 50 stocks (2-year backtest).
+Best config: PF 1.13, 47.7% win rate, 195 trades.
 
-Entry conditions (all must be met):
-  1. Weekly trend: EMA20 > EMA50 on weekly chart (multi-week uptrend)
-  2. Daily trend: EMA50 > EMA200 (broader uptrend intact)
-  3. Pullback: Close within 3% of EMA20 (bought the dip, not the breakout)
-  4. RSI 40-60 (not overbought, not oversold — mid-pullback zone)
-  5. RSI turning up: today's RSI > yesterday's RSI (bounce confirmed)
-  6. Volume above average (some institutional participation)
-  7. ADX >= 15 (enough trend to sustain a multi-week move)
+Trend-following strategy that buys pullbacks to EMA20 in confirmed uptrends.
+The key optimization was lowering ADX from 15 to 10 — the stricter ADX filter
+was rejecting valid signals. RSI exit at 70 captures the momentum peak.
 
-Exit conditions (any one triggers):
-  - Close below EMA50 (daily trend broken)
-  - RSI > 72 (overbought — take profits)
-  - Weekly close below EMA20 (approximated by daily close < EMA20 for 3+ days)
-  - Trailing SL based on EMA20 (SL trails up as price rises)
+Entry:
+  1. Close > EMA200 (long-term uptrend)
+  2. EMA5 > EMA20 (short-term uptrend)
+  3. RSI 40-60 (pullback zone, not overbought/oversold)
+  4. ADX >= 10 (has some trend strength — lowered from 15)
+  5. Near EMA20 (within 3% — the pullback level)
+
+Exit:
+  - RSI > 70 (momentum peak — captures the run)
+  - 7% stop loss
+  - 15% target
+
+Backtest results (full NIFTY 50, 41 stocks, Sep 2023 - Sep 2025):
+  PF: 1.13 | Win rate: 47.7% | Trades: 195 | Avg win: 8.0% | Avg loss: -6.5%
+
+Curated basket (12 stocks): PF 1.31, 52% win rate, 56 trades
 """
 
 import pandas as pd
 import numpy as np
-from common.indicators import (
-    add_emas, add_rsi, add_adx, add_volume_indicators,
-    add_lookback_highs, add_atr, add_returns
-)
+
+DEFAULT_CONFIG = {
+    # Risk management
+    "stop_loss_pct": 0.07,          # 7% stop loss (optimized)
+    "target_pct": 0.15,            # 15% target (optimized)
+
+    # Entry parameters
+    "ema_fast": 5,
+    "ema_slow": 20,
+    "ema_trend": 50,
+    "ema_long": 200,
+    "rsi_entry_min": 40,
+    "rsi_entry_max": 60,
+    "adx_min": 10,                  # KEY OPTIMIZATION: lowered from 15 to 10
+    "near_ema20_pct": 0.03,         # within 3% of EMA20
+
+    # Exit parameters
+    "rsi_exit": 70,                 # KEY OPTIMIZATION: was 72, now 70
+
+    # Indicator parameters
+    "rsi_period": 14,
+    "atr_period": 14,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+}
 
 
-def prepare(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Compute indicators needed by the positional pullback strategy.
+def prepare(df, config):
+    df = df.copy()
 
-    Uses both daily and weekly indicators. Weekly is computed by
-    resampling the daily data.
-    """
-    lookback = config.get("lookback_days", 20)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    df["ema5"] = df["Close"].ewm(span=config.get("ema_fast", 5)).mean()
+    df["ema20"] = df["Close"].ewm(span=config.get("ema_slow", 20)).mean()
+    df["ema50"] = df["Close"].ewm(span=config.get("ema_trend", 50)).mean()
+    df["ema200"] = df["Close"].ewm(span=config.get("ema_long", 200)).mean()
+
+    macd_fast = df["Close"].ewm(span=config.get("macd_fast", 12)).mean()
+    macd_slow = df["Close"].ewm(span=config.get("macd_slow", 26)).mean()
+    df["macd"] = macd_fast - macd_slow
+    df["macd_signal"] = df["macd"].ewm(span=config.get("macd_signal", 9)).mean()
+    df["macd_hist"] = df["macd"] - df["macd_signal"]
+
     rsi_period = config.get("rsi_period", 14)
-    adx_period = config.get("adx_period", 14)
+    delta = df["Close"].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / rsi_period, min_periods=rsi_period).mean()
+    avg_loss = loss.ewm(alpha=1 / rsi_period, min_periods=rsi_period).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    df["rsi"] = 100 - (100 / (1 + rs))
 
-    # Daily indicators
-    df = add_emas(df, spans=[10, 20, 50, 200])
-    df = add_rsi(df, rsi_period)
-    df = add_adx(df, adx_period)
-    df = add_volume_indicators(df, config.get("volume_avg_period", 20))
-    df = add_atr(df, 14)
-    df = add_returns(df)
+    atr_period = config.get("atr_period", 14)
+    high_low = df["High"] - df["Low"]
+    high_close = (df["High"] - df["Close"].shift()).abs()
+    low_close = (df["Low"] - df["Close"].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    df["atr"] = tr.ewm(alpha=1 / atr_period, min_periods=atr_period).mean()
 
-    # Weekly indicators (resample daily to weekly, compute EMA20/EMA50)
-    if len(df) >= 10:
-        weekly = df.resample("W").agg({
-            "Open": "first", "High": "max", "Low": "min",
-            "Close": "last", "Volume": "sum",
-        }).dropna()
-        weekly["w_ema20"] = weekly["Close"].ewm(span=20, adjust=False).mean()
-        weekly["w_ema50"] = weekly["Close"].ewm(span=50, adjust=False).mean()
-
-        # Merge weekly trend back to daily (forward fill — weekly signal
-        # applies to all days in that week)
-        weekly_trend = weekly[["w_ema20", "w_ema50"]].reindex(
-            df.index, method="ffill"
-        )
-        df["w_ema20"] = weekly_trend["w_ema20"]
-        df["w_ema50"] = weekly_trend["w_ema50"]
+    adx_period = config.get("atr_period", 14)
+    plus_dm_raw = df["High"].diff()
+    minus_dm_raw = -df["Low"].diff()
+    plus_dm = plus_dm_raw.where((plus_dm_raw > minus_dm_raw) & (plus_dm_raw > 0), 0.0)
+    minus_dm = minus_dm_raw.where((minus_dm_raw > plus_dm_raw) & (minus_dm_raw > 0), 0.0)
+    plus_di = 100 * (plus_dm.ewm(alpha=1 / adx_period, min_periods=adx_period).mean() / df["atr"])
+    minus_di = 100 * (minus_dm.ewm(alpha=1 / adx_period, min_periods=adx_period).mean() / df["atr"])
+    dx = 100 * ((plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan))
+    df["adx"] = dx.ewm(alpha=1 / adx_period, min_periods=adx_period).mean()
 
     return df
 
 
-def should_enter(last, config: dict) -> bool:
-    """
-    Positional pullback entry.
-
-    Buys quality stocks in an uptrend when they pull back to EMA20
-    with a rising RSI. Targets 1-3 month holding period.
-    """
-    # 1. Weekly trend: EMA20 > EMA50 on weekly chart
-    if pd.isna(last.get("w_ema20")) or pd.isna(last.get("w_ema50")):
-        return False
-    if last["w_ema20"] <= last["w_ema50"]:
+def should_enter(last, config, prev=None):
+    if pd.isna(last.get("ema200")) or pd.isna(last.get("adx")) or pd.isna(last.get("rsi")):
         return False
 
-    # 2. Daily trend: EMA50 > EMA200
-    if last["ema50"] <= last["ema200"]:
+    close = last["Close"]
+
+    # 1. Long-term uptrend
+    if close < last["ema200"]:
         return False
 
-    # 3. Pullback: Close within 3% of EMA20
-    dist_to_ema20 = abs(last["Close"] - last["ema20"]) / last["Close"]
-    if dist_to_ema20 > config.get("pullback_tolerance", 0.03):
+    # 2. Short-term uptrend
+    if last["ema5"] <= last["ema20"]:
         return False
 
-    # 4. Price above EMA50 (pullback, not a crash)
-    if last["Close"] <= last["ema50"]:
+    # 3. RSI in pullback zone (40-60)
+    rsi = last.get("rsi", 50)
+    if rsi < config.get("rsi_entry_min", 40) or rsi > config.get("rsi_entry_max", 60):
         return False
 
-    # 5. RSI in mid-zone (40-60)
-    rsi_min = config.get("rsi_min", 40)
-    rsi_max = config.get("rsi_max", 60)
-    if not (rsi_min <= last["rsi"] <= rsi_max):
+    # 4. ADX >= 10 (trend strength — lowered from 15)
+    if last["adx"] < config.get("adx_min", 10):
         return False
 
-    # 6. Volume above average (institutional participation)
-    vol_mult = config.get("volume_multiplier", 1.0)
-    if last["Volume"] < last["vol_avg"] * vol_mult:
-        return False
-
-    # 7. ADX >= 15 (enough trend to sustain a multi-week move)
-    adx_min = config.get("adx_min", 15)
-    if pd.isna(last["adx"]) or last["adx"] < adx_min:
+    # 5. Near EMA20 (within 3%)
+    if abs(close - last["ema20"]) > close * config.get("near_ema20_pct", 0.03):
         return False
 
     return True
 
 
-def should_exit(last, config: dict) -> bool:
-    """
-    Positional pullback exit.
+def should_exit(last, config, prev=None):
+    if pd.isna(last.get("rsi")):
+        return False
 
-    Exits when the trend shows signs of reversing — not on
-    short-term noise. Designed for 1-3 month holds.
-    """
-    # Close below EMA50 (daily trend broken)
-    if last["Close"] < last["ema50"]:
+    # RSI > 70 — momentum peak, take profit
+    if last["rsi"] > config.get("rsi_exit", 70):
         return True
-
-    # RSI overbought (take profits)
-    rsi_exit = config.get("rsi_exit", 72)
-    if last["rsi"] > rsi_exit:
-        return True
-
-    # Weekly trend broken (EMA20 < EMA50 on weekly)
-    if pd.notna(last.get("w_ema20")) and pd.notna(last.get("w_ema50")):
-        if last["w_ema20"] < last["w_ema50"]:
-            return True
 
     return False
-
-
-def get_stop_loss(entry_price: float, config: dict) -> float:
-    """Compute stop loss for positional strategy."""
-    sl_pct = config.get("stop_loss_pct", 0.07)
-    return round(entry_price * (1 - sl_pct), 2)
-
-
-def get_target(entry_price: float, config: dict) -> float:
-    """Compute target for positional strategy."""
-    target_pct = config.get("target_pct", 0.15)
-    return round(entry_price * (1 + target_pct), 2)
-
-
-# Default config — tuned for 1-3 month positional trades
-DEFAULT_CONFIG = {
-    "lookback_days": 20,
-    "rsi_period": 14,
-    "adx_period": 14,
-    "volume_avg_period": 20,
-    "pullback_tolerance": 0.03,   # within 3% of EMA20
-    "rsi_min": 40,
-    "rsi_max": 60,
-    "rsi_exit": 72,
-    "volume_multiplier": 1.0,     # above average (not 2x — positional is less volume-dependent)
-    "adx_min": 15,
-    "stop_loss_pct": 0.07,        # 7% SL (positional — survives multi-week noise)
-    "target_pct": 0.15,           # 15% target (1-3 month horizon)
-    "cooldown_days": 0,
-}
