@@ -120,7 +120,7 @@ class DhanClient:
         body = {
             "dhanClientId": self.client_id,
             "profitValue": str(profit_value),
-            "lossValue": str(loss_value),
+            "lossValue": str(-abs(loss_value)),
             "productType": product_types,
             "enableKillSwitch": enable_kill_switch,
         }
@@ -404,7 +404,7 @@ def main():
     )
     parser.add_argument(
         "--products", nargs="+",
-        default=["INTRADAY"],
+        default=["DELIVERY"],
         choices=["INTRADAY", "DELIVERY"],
         help="Product types to cover (default: INTRADAY). "
              "Pass 'INTRADAY DELIVERY' for both.",

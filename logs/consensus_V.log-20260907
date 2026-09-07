@@ -1,0 +1,65 @@
+2026-09-05 01:15:08,046 [__main__] INFO: ============================================================
+2026-09-05 01:15:08,046 [__main__] INFO: Consensus Voting Engine — Session V (Consensus Voting)
+2026-09-05 01:15:08,046 [__main__] INFO:   Strategies: 5 (breakout, pullback, supertrend, macd, rsi_mean_reversion)
+2026-09-05 01:15:08,047 [__main__] INFO:   Vote threshold: 3/5 for entry/exit
+2026-09-05 01:15:08,047 [__main__] INFO: ============================================================
+2026-09-05 01:15:08,111 [__main__] INFO: [V/COLPAL] Running 5 strategies...
+2026-09-05 01:15:08,241 [__main__] INFO:   Votes: B=1 S=1 H=3
+2026-09-05 01:15:08,241 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:BUY | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,242 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,242 [__main__] INFO: [V/OFSS] Running 5 strategies...
+2026-09-05 01:15:08,358 [__main__] INFO:   Votes: B=0 S=0 H=5
+2026-09-05 01:15:08,358 [__main__] INFO:   [breakout:HOLD | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,359 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,359 [__main__] INFO: [V/NATIONALUM] Running 5 strategies...
+2026-09-05 01:15:08,473 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:08,473 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,473 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,473 [__main__] INFO: [V/HINDZINC] Running 5 strategies...
+2026-09-05 01:15:08,588 [__main__] INFO:   Votes: B=0 S=0 H=5
+2026-09-05 01:15:08,588 [__main__] INFO:   [breakout:HOLD | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,588 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,588 [__main__] INFO: [V/IRCTC] Running 5 strategies...
+2026-09-05 01:15:08,702 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:08,702 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,703 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,703 [__main__] INFO: [V/HCLTECH] Running 5 strategies...
+2026-09-05 01:15:08,817 [__main__] INFO:   Votes: B=0 S=0 H=5
+2026-09-05 01:15:08,817 [__main__] INFO:   [breakout:HOLD | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,818 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,818 [__main__] INFO: [V/VBL] Running 5 strategies...
+2026-09-05 01:15:08,931 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:08,931 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:08,931 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:08,931 [__main__] INFO: [V/HAL] Running 5 strategies...
+2026-09-05 01:15:09,046 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,046 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,046 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,046 [__main__] INFO: [V/BOSCHLTD] Running 5 strategies...
+2026-09-05 01:15:09,163 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,163 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,163 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,164 [__main__] INFO: [V/COALINDIA] Running 5 strategies...
+2026-09-05 01:15:09,279 [__main__] INFO:   Votes: B=0 S=0 H=5
+2026-09-05 01:15:09,279 [__main__] INFO:   [breakout:HOLD | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,279 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,280 [__main__] INFO: [V/BRITANNIA] Running 5 strategies...
+2026-09-05 01:15:09,393 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,394 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,394 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,394 [__main__] INFO: [V/SUNPHARMA] Running 5 strategies...
+2026-09-05 01:15:09,508 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,509 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,509 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,509 [__main__] INFO: [V/ASTRAL] Running 5 strategies...
+2026-09-05 01:15:09,622 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,622 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,623 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,623 [__main__] INFO: [V/WIPRO] Running 5 strategies...
+2026-09-05 01:15:09,736 [__main__] INFO:   Votes: B=0 S=1 H=4
+2026-09-05 01:15:09,737 [__main__] INFO:   [breakout:SELL | pullback:HOLD | supertrend:HOLD | macd:HOLD | rsi_mean_reversion:HOLD]
+2026-09-05 01:15:09,737 [__main__] INFO:   Consensus: HOLD
+2026-09-05 01:15:09,737 [__main__] INFO: ============================================================
+2026-09-05 01:15:09,737 [__main__] INFO: Session V: 0 actions for 14 stocks
+2026-09-05 01:15:09,737 [__main__] INFO:   BUY: 0 | SELL: 0 | SL updates: 0
+2026-09-05 01:15:09,737 [__main__] INFO: ============================================================
