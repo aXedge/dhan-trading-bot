@@ -3,38 +3,21 @@
 F&O Trade Analyzer — Reverse Engineer Stratzy Algos
 =====================================================
 
-Pulls historical F&O trade data from Dhan's API and analyzes patterns:
-  - Entry timing (time of day, day of week)
-  - Strike selection (ITM/ATM/OTM, distance from spot)
-  - Spread structure (credit spread, naked, straddle?)
-  - Holding period (intraday vs overnight)
-  - Exit patterns (SL hit, target hit, time-based?)
-  - P&L distribution
-  - Position sizing
-
-Requires: DHAN_CLIENT_ID, DHAN_PIN, DHAN_TOTP_SECRET in .env
+Pulls historical F&O trade data from Dhan's API and analyzes patterns.
 
 Usage:
-    cd ~/dhan-trading-bot
-    source venv/bin/activate
-    export PYTHONPATH=~/dhan-trading-bot:~/dhan-trading-bot/src
     python futures_and_options/fno_trade_analyzer.py --days 30
-
-    # Analyze last 90 days
-    python futures_and_options/fno_trade_analyzer.py --days 90
-
-    # Export raw trades to CSV
-    python futures_and_options/fno_trade_analyzer.py --days 60 --export
+    python futures_and_options/fno_trade_analyzer.py --days 90 --export
 """
 
 import argparse
 import json
 import os
 import sys
+import time as _time
 from datetime import datetime, timedelta, date
 from collections import Counter, defaultdict
 
-# Add project root to path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 sys.path.insert(0, REPO_ROOT)
@@ -66,6 +49,7 @@ class DhanClient:
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
+    base_url = API_BASE
 
     def _request(self, method, endpoint, params=None):
         url = f"{self.base_url}{endpoint}"
@@ -75,22 +59,18 @@ class DhanClient:
             sys.exit(1)
         return r.json()
 
-    base_url = API_BASE
-
     def get_trade_history(self, from_date, to_date, page=0):
-        """Fetch historical trades from Dhan API."""
         endpoint = f"/trades/{from_date}/{to_date}/{page}"
         return self._request("GET", endpoint)
 
     def get_all_trades(self, from_date, to_date):
-        """Fetch all pages of trade history."""
         all_trades = []
         page = 0
         while True:
             resp = self.get_trade_history(from_date, to_date, page)
             if isinstance(resp, list):
                 all_trades.extend(resp)
-                if len(resp) < 500:  # Last page
+                if len(resp) < 500:
                     break
                 page += 1
             elif isinstance(resp, dict) and "errorCode" in resp:
@@ -106,14 +86,56 @@ class DhanClient:
         return self._request("GET", "/fundlimit")
 
 
+def get_symbol(trade):
+    """Extract best available symbol from trade."""
+    for field in ["tradingSymbol", "customSymbol", "securityId"]:
+        val = trade.get(field)
+        if val and val != "NA" and str(val).strip():
+            return str(val)
+    return "unknown"
+
+
 def is_fno_trade(trade):
-    """Check if trade is in F&O segment."""
-    seg = trade.get("exchangeSegment", "")
-    return seg in FNO_SEGMENTS
+    return trade.get("exchangeSegment", "") in FNO_SEGMENTS
+
+
+def safe_float(val, default=0.0):
+    try:
+        if val is None or val == "NA":
+            return default
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_int(val, default=0):
+    try:
+        if val is None or val == "NA":
+            return default
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_str(val, default="NA"):
+    if val is None or val == "":
+        return default
+    return str(val)
+
+
+def parse_datetime(val):
+    """Parse datetime string, return None on failure."""
+    if not val or val == "NA":
+        return None
+    for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"]:
+        try:
+            return datetime.strptime(val, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def analyze_trades(trades):
-    """Analyze F&O trades and extract strategy patterns."""
     if not trades:
         print("No F&O trades found in the given period.")
         return
@@ -122,39 +144,24 @@ def analyze_trades(trades):
     print(f"F&O TRADE ANALYSIS — {len(trades)} trades")
     print(f"{'='*70}")
 
-    # Group trades by orderId to reconstruct positions
-    order_groups = defaultdict(list)
-    for t in trades:
-        order_groups[t.get("orderId", "")].append(t)
-
-    # Reconstruct round-trip trades (entry + exit pairs)
-    # Group by trading symbol + date to match entries with exits
-    symbol_date_groups = defaultdict(list)
-    for t in trades:
-        sym = t.get("tradingSymbol", t.get("customSymbol", "unknown"))
-        exchange_time = t.get("exchangeTime", "")
-        if exchange_time and exchange_time != "NA":
-            trade_date = exchange_time.split(" ")[0]
-        else:
-            trade_date = "unknown"
-        symbol_date_groups[(sym, trade_date)].append(t)
-
     # ========================================
     # 1. BASIC STATS
     # ========================================
     print(f"\n1. BASIC STATISTICS")
     print(f"   Total F&O trades: {len(trades)}")
-    print(f"   Unique symbols: {len(set(t.get('tradingSymbol', '') for t in trades))}")
-    print(f"   Date range: {trades[0].get('exchangeTime', '?')} to {trades[-1].get('exchangeTime', '?')}")
+    symbols = set(get_symbol(t) for t in trades)
+    print(f"   Unique symbols: {len(symbols)}")
 
-    # Unique trading days
-    trade_dates = set()
+    # Date range
+    dates = []
     for t in trades:
-        et = t.get("exchangeTime", "")
-        if et and et != "NA":
-            trade_dates.add(et.split(" ")[0])
-    print(f"   Trading days active: {len(trade_dates)}")
-    if trade_dates:
+        dt = parse_datetime(t.get("exchangeTime", ""))
+        if dt:
+            dates.append(dt)
+    if dates:
+        print(f"   Date range: {min(dates).strftime('%Y-%m-%d')} to {max(dates).strftime('%Y-%m-%d')}")
+        trade_dates = set(d.strftime("%Y-%m-%d") for d in dates)
+        print(f"   Trading days active: {len(trade_dates)}")
         print(f"   Trades per day (avg): {len(trades) / len(trade_dates):.1f}")
 
     # ========================================
@@ -162,52 +169,45 @@ def analyze_trades(trades):
     # ========================================
     print(f"\n2. INSTRUMENT BREAKDOWN")
     instruments = Counter()
+    for t in trades:
+        instruments[get_symbol(t)] += 1
+
+    print(f"   All traded instruments:")
+    for sym, count in instruments.most_common(20):
+        print(f"     {sym:45s}  {count:4d} trades")
+
+    # Option types
     option_types = Counter()
     for t in trades:
-        sym = t.get("tradingSymbol", "unknown")
-        instruments[sym] += 1
-        opt_type = t.get("drvOptionType", "NA")
-        if opt_type != "NA":
-            option_types[opt_type] += 1
-
-    print(f"   Top 15 traded instruments:")
-    for sym, count in instruments.most_common(15):
-        print(f"     {sym:40s}  {count:4d} trades")
-
+        opt = safe_str(t.get("drvOptionType", "NA"))
+        if opt != "NA":
+            option_types[opt] += 1
     if option_types:
         print(f"\n   Option types:")
         for ot, count in option_types.most_common():
             print(f"     {ot:10s}  {count:4d} trades")
 
     # ========================================
-    # 3. ENTRY TIMING ANALYSIS
+    # 3. ENTRY TIMING
     # ========================================
     print(f"\n3. ENTRY TIMING ANALYSIS")
-    entry_times = []
     entry_hours = Counter()
     entry_days = Counter()
     for t in trades:
-        et = t.get("exchangeTime", "")
-        if et and et != "NA":
-            try:
-                dt = datetime.strptime(et, "%Y-%m-%d %H:%M:%S")
-                entry_times.append(dt)
-                entry_hours[dt.hour] += 1
-                entry_days[dt.strftime("%A")] += 1
-            except ValueError:
-                pass
+        dt = parse_datetime(t.get("exchangeTime", ""))
+        if dt:
+            entry_hours[dt.hour] += 1
+            entry_days[dt.strftime("%A")] += 1
 
-    if entry_times:
+    if entry_hours:
         print(f"   Entry time distribution (hour of day):")
         for hr in sorted(entry_hours.keys()):
-            bar = "█" * (entry_hours[hr] // 2)
+            bar = "#" * (entry_hours[hr] * 3)
             print(f"     {hr:02d}:00  {entry_hours[hr]:4d}  {bar}")
-
         print(f"\n   Day of week distribution:")
-        day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-        for day in day_order:
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]:
             count = entry_days.get(day, 0)
-            bar = "█" * (count // 2)
+            bar = "#" * (count * 3)
             print(f"     {day:10s}  {count:4d}  {bar}")
 
     # ========================================
@@ -216,17 +216,19 @@ def analyze_trades(trades):
     print(f"\n4. STRIKE PRICE ANALYSIS")
     strikes = []
     for t in trades:
-        strike = t.get("drvStrikePrice", 0)
-        if strike and strike != 0:
-            strikes.append(float(strike))
+        s = safe_float(t.get("drvStrikePrice"))
+        if s > 0:
+            strikes.append(s)
 
     if strikes:
         print(f"   Strike prices traded: {len(strikes)}")
         print(f"   Min: {min(strikes):.0f} | Max: {max(strikes):.0f} | Median: {sorted(strikes)[len(strikes)//2]:.0f}")
         unique_strikes = sorted(set(strikes))
         print(f"   Unique strikes: {len(unique_strikes)}")
-        if len(unique_strikes) <= 20:
-            print(f"   All strikes: {', '.join(f'{s:.0f}' for s in unique_strikes)}")
+        print(f"   All strikes: {', '.join(f'{s:.0f}' for s in unique_strikes)}")
+
+        # Strike spread (max - min within same time window = spread width)
+        print(f"   Strike range: {max(strikes) - min(strikes):.0f} points")
 
     # ========================================
     # 5. EXPIRY ANALYSIS
@@ -234,23 +236,28 @@ def analyze_trades(trades):
     print(f"\n5. EXPIRY ANALYSIS")
     expiries = Counter()
     for t in trades:
-        exp = t.get("drvExpiryDate", "NA")
-        if exp and exp != "NA":
+        exp = safe_str(t.get("drvExpiryDate", "NA"))
+        if exp != "NA":
             expiries[exp] += 1
 
     if expiries:
         print(f"   Expiry dates used:")
         for exp, count in expiries.most_common(10):
-            print(f"     {exp:25s}  {count:4d} trades")
+            # Check if expiry is a Monday (NIFTY weekly) or Thursday (monthly)
+            try:
+                exp_dt = datetime.strptime(exp, "%Y-%m-%d")
+                dow = exp_dt.strftime("%A")
+                print(f"     {exp:25s} ({dow:9s})  {count:4d} trades")
+            except ValueError:
+                print(f"     {exp:25s}  {count:4d} trades")
 
     # ========================================
-    # 6. TRANSACTION TYPE (BUY/SELL)
+    # 6. TRANSACTION TYPE
     # ========================================
     print(f"\n6. TRANSACTION TYPE ANALYSIS")
     txn_types = Counter()
     for t in trades:
-        txn_types[t.get("transactionType", "UNKNOWN")] += 1
-
+        txn_types[safe_str(t.get("transactionType", "UNKNOWN"))] += 1
     for txn, count in txn_types.most_common():
         pct = count / len(trades) * 100
         print(f"   {txn:5s}  {count:4d} trades ({pct:.1f}%)")
@@ -261,7 +268,7 @@ def analyze_trades(trades):
     print(f"\n7. PRODUCT TYPE")
     products = Counter()
     for t in trades:
-        products[t.get("productType", "UNKNOWN")] += 1
+        products[safe_str(t.get("productType", "UNKNOWN"))] += 1
     for prod, count in products.most_common():
         print(f"   {prod:15s}  {count:4d} trades")
 
@@ -271,7 +278,7 @@ def analyze_trades(trades):
     print(f"\n8. ORDER TYPE")
     order_types = Counter()
     for t in trades:
-        order_types[t.get("orderType", "UNKNOWN")] += 1
+        order_types[safe_str(t.get("orderType", "UNKNOWN"))] += 1
     for ot, count in order_types.most_common():
         print(f"   {ot:20s}  {count:4d} trades")
 
@@ -279,26 +286,31 @@ def analyze_trades(trades):
     # 9. POSITION RECONSTRUCTION
     # ========================================
     print(f"\n9. POSITION RECONSTRUCTION")
-    # Group trades by symbol and reconstruct buy/sell pairs
     positions = defaultdict(lambda: {"buys": [], "sells": []})
     for t in trades:
-        sym = t.get("tradingSymbol", "unknown")
-        txn = t.get("transactionType", "")
-        qty = int(t.get("tradedQuantity", 0))
-        price = float(t.get("tradedPrice", 0))
-        et = t.get("exchangeTime", "")
+        sym = get_symbol(t)
+        txn = safe_str(t.get("transactionType", ""))
+        qty = safe_int(t.get("tradedQuantity"))
+        price = safe_float(t.get("tradedPrice"))
+        et = safe_str(t.get("exchangeTime", ""))
 
         if txn == "BUY":
             positions[sym]["buys"].append({"qty": qty, "price": price, "time": et})
         elif txn == "SELL":
             positions[sym]["sells"].append({"qty": qty, "price": price, "time": et})
 
-    # Match buys with sells to compute P&L
+    print(f"   Symbols with buy activity: {sum(1 for p in positions.values() if p['buys'])}")
+    print(f"   Symbols with sell activity: {sum(1 for p in positions.values() if p['sells'])}")
+
+    # ========================================
+    # 10. P&L ANALYSIS
+    # ========================================
+    print(f"\n10. P&L ANALYSIS")
     completed_trades = []
+
     for sym, pos in positions.items():
         buys = sorted(pos["buys"], key=lambda x: x["time"])
         sells = sorted(pos["sells"], key=lambda x: x["time"])
-
         buy_idx = 0
         for sell in sells:
             remaining = sell["qty"]
@@ -307,12 +319,10 @@ def analyze_trades(trades):
                 matched = min(remaining, buy["qty"])
                 pnl = (sell["price"] - buy["price"]) * matched
                 hold_seconds = 0
-                try:
-                    bt = datetime.strptime(buy["time"], "%Y-%m-%d %H:%M:%S")
-                    st = datetime.strptime(sell["time"], "%Y-%m-%d %H:%M:%S")
+                bt = parse_datetime(buy["time"])
+                st = parse_datetime(sell["time"])
+                if bt and st:
                     hold_seconds = (st - bt).total_seconds()
-                except (ValueError, TypeError):
-                    pass
 
                 completed_trades.append({
                     "symbol": sym,
@@ -324,16 +334,11 @@ def analyze_trades(trades):
                     "buy_time": buy["time"],
                     "sell_time": sell["time"],
                 })
-
                 buy["qty"] -= matched
                 remaining -= matched
                 if buy["qty"] <= 0:
                     buy_idx += 1
 
-    # ========================================
-    # 10. P&L ANALYSIS
-    # ========================================
-    print(f"\n10. P&L ANALYSIS")
     if completed_trades:
         pnls = [ct["pnl"] for ct in completed_trades]
         wins = [p for p in pnls if p > 0]
@@ -341,12 +346,15 @@ def analyze_trades(trades):
 
         print(f"   Completed round-trip trades: {len(completed_trades)}")
         print(f"   Wins: {len(wins)} | Losses: {len(losses)}")
-        print(f"   Win rate: {len(wins)/len(completed_trades)*100:.1f}%")
+        if completed_trades:
+            print(f"   Win rate: {len(wins)/len(completed_trades)*100:.1f}%")
         print(f"   Total P&L: Rs.{sum(pnls):,.2f}")
-        print(f"   Avg win:  Rs.{sum(wins)/len(wins):,.2f}" if wins else "   Avg win:  N/A")
-        print(f"   Avg loss: Rs.{sum(losses)/len(losses):,.2f}" if losses else "   Avg loss: N/A")
-        if wins and losses:
-            pf = abs(sum(wins) / sum(losses)) if sum(losses) != 0 else float('inf')
+        if wins:
+            print(f"   Avg win:  Rs.{sum(wins)/len(wins):,.2f}")
+        if losses:
+            print(f"   Avg loss: Rs.{sum(losses)/len(losses):,.2f}")
+        if wins and losses and sum(losses) != 0:
+            pf = abs(sum(wins) / sum(losses))
             print(f"   Profit factor: {pf:.2f}")
         print(f"   Best trade:  Rs.{max(pnls):,.2f}")
         print(f"   Worst trade: Rs.{min(pnls):,.2f}")
@@ -362,11 +370,9 @@ def analyze_trades(trades):
         if holds:
             avg_hold = sum(holds) / len(holds)
             median_hold = sorted(holds)[len(holds)//2]
-
-            # Categorize
-            intraday = sum(1 for h in holds if h < 6 * 3600)  # < 6 hours
-            overnight = sum(1 for h in holds if 6 * 3600 <= h < 48 * 3600)  # overnight to 2 days
-            multi_day = sum(1 for h in holds if h >= 48 * 3600)  # > 2 days
+            intraday = sum(1 for h in holds if h < 6 * 3600)
+            overnight = sum(1 for h in holds if 6 * 3600 <= h < 48 * 3600)
+            multi_day = sum(1 for h in holds if h >= 48 * 3600)
 
             print(f"   Avg holding period: {avg_hold/3600:.1f} hours")
             print(f"   Median holding:     {median_hold/3600:.1f} hours")
@@ -378,59 +384,42 @@ def analyze_trades(trades):
     # 12. SPREAD DETECTION
     # ========================================
     print(f"\n12. SPREAD / STRATEGY DETECTION")
-    # Group trades by time window (trades within 60 seconds = likely a spread)
     time_groups = defaultdict(list)
     for t in trades:
-        et = t.get("exchangeTime", "")
-        if et and et != "NA":
-            try:
-                dt = datetime.strptime(et, "%Y-%m-%d %H:%M:%S")
-                # Round to nearest minute for grouping
-                time_key = dt.strftime("%Y-%m-%d %H:%M")
-                time_groups[time_key].append(t)
-            except ValueError:
-                pass
+        dt = parse_datetime(t.get("exchangeTime", ""))
+        if dt:
+            time_key = dt.strftime("%Y-%m-%d %H:%M")
+            time_groups[time_key].append(t)
 
-    spread_count = 0
-    single_count = 0
-    for time_key, group in time_groups.items():
-        if len(group) >= 2:
-            spread_count += 1
-        else:
-            single_count += 1
-
+    spread_count = sum(1 for g in time_groups.values() if len(g) >= 2)
+    single_count = sum(1 for g in time_groups.values() if len(g) == 1)
     print(f"   Single-leg entries: {single_count}")
     print(f"   Multi-leg entries (spreads): {spread_count}")
 
-    # Analyze spread structure
     if spread_count > 0:
-        print(f"\n   Spread structure analysis (first 10):")
-        shown = 0
-        for time_key, group in sorted(time_groups.items()):
-            if len(group) >= 2 and shown < 10:
+        print(f"\n   Spread structure analysis (all entries):")
+        for time_key in sorted(time_groups.keys()):
+            group = time_groups[time_key]
+            if len(group) >= 2:
                 legs = []
-                for t in group:
-                    sym = t.get("tradingSymbol", "?")
-                    txn = t.get("transactionType", "?")
-                    strike = t.get("drvStrikePrice", 0)
-                    opt = t.get("drvOptionType", "NA")
-                    price = t.get("tradedPrice", 0)
-                    qty = t.get("tradedQuantity", 0)
-                    legs.append(f"{txn} {sym} @{price} x{qty}")
-
-                # Detect credit spread (sell higher premium, buy lower premium)
                 total_credit = 0
                 for t in group:
-                    if t.get("transactionType") == "SELL":
-                        total_credit += float(t.get("tradedPrice", 0))
+                    sym = get_symbol(t)
+                    txn = safe_str(t.get("transactionType", "?"))
+                    strike = safe_float(t.get("drvStrikePrice"))
+                    opt = safe_str(t.get("drvOptionType", "NA"))
+                    price = safe_float(t.get("tradedPrice"))
+                    qty = safe_int(t.get("tradedQuantity"))
+                    legs.append(f"{txn} {sym} K={strike:.0f} {opt} @{price:.2f} x{qty}")
+                    if txn == "SELL":
+                        total_credit += price
                     else:
-                        total_credit -= float(t.get("tradedPrice", 0))
+                        total_credit -= price
 
                 spread_type = "CREDIT" if total_credit > 0 else "DEBIT"
                 print(f"     {time_key} [{spread_type} Rs.{total_credit:.2f}]")
                 for leg in legs:
                     print(f"       {leg}")
-                shown += 1
 
     # ========================================
     # 13. STRATEGY INFERENCE
@@ -443,35 +432,51 @@ def analyze_trades(trades):
         if holds:
             avg_hold_hours = sum(holds) / len(holds)
             if avg_hold_hours < 6:
-                print(f"   → Intraday strategy (avg hold {avg_hold_hours:.1f}h)")
+                print(f"   -> Intraday strategy (avg hold {avg_hold_hours:.1f}h)")
             elif avg_hold_hours < 48:
-                print(f"   → Overnight strategy (avg hold {avg_hold_hours:.1f}h)")
+                print(f"   -> Overnight strategy (avg hold {avg_hold_hours:.1f}h)")
             else:
-                print(f"   → Multi-day positional strategy (avg hold {avg_hold_hours:.1f}h)")
+                print(f"   -> Multi-day positional strategy (avg hold {avg_hold_hours:.1f}h)")
 
     if spread_count > single_count:
-        print(f"   → Spread strategy (multi-leg in {spread_count}/{spread_count+single_count} entries)")
+        print(f"   -> Spread strategy ({spread_count} multi-leg entries vs {single_count} single)")
 
     if option_types:
         calls = option_types.get("CALL", 0)
         puts = option_types.get("PUT", 0)
         if calls > puts * 2:
-            print(f"   → Call-focused ({calls} calls vs {puts} puts) — bullish bias or call selling")
+            print(f"   -> Call-focused ({calls}C vs {puts}P) — bullish bias or call selling")
         elif puts > calls * 2:
-            print(f"   → Put-focused ({puts} puts vs {calls} calls) — bearish bias or put selling")
+            print(f"   -> Put-focused ({puts}P vs {calls}C) — bearish bias or put selling")
         else:
-            print(f"   → Balanced call/put ({calls} calls, {puts} puts) — possibly straddle/strangle")
+            print(f"   -> Balanced call/put ({calls}C, {puts}P)")
 
-    # Check for credit spread pattern (sell near, buy far)
-    txn_types = Counter(t.get("transactionType", "") for t in trades)
     sells = txn_types.get("SELL", 0)
     buys = txn_types.get("BUY", 0)
     if sells > 0 and buys > 0:
         if sells >= buys * 0.8:
-            print(f"   → Significant selling ({sells} sells vs {buys} buys) — likely credit spread / option selling")
+            print(f"   -> Option selling strategy ({sells} sells vs {buys} buys)")
+
+    # Expiry pattern
+    if expiries:
+        weekly_count = 0
+        monthly_count = 0
+        for exp in expiries:
+            try:
+                exp_dt = datetime.strptime(exp, "%Y-%m-%d")
+                if exp_dt.weekday() == 0:  # Monday = NIFTY weekly
+                    weekly_count += expiries[exp]
+                elif exp_dt.weekday() == 3:  # Thursday = monthly
+                    monthly_count += expiries[exp]
+            except ValueError:
+                pass
+        if weekly_count > monthly_count:
+            print(f"   -> Weekly expiry preferred ({weekly_count} weekly vs {monthly_count} monthly)")
+        elif monthly_count > weekly_count:
+            print(f"   -> Monthly expiry preferred ({monthly_count} monthly vs {weekly_count} weekly)")
 
     # ========================================
-    # 14. DAILY P&L BREAKDOWN
+    # 14. DAILY P&L
     # ========================================
     print(f"\n14. DAILY P&L BREAKDOWN")
     if completed_trades:
@@ -489,12 +494,29 @@ def analyze_trades(trades):
         print(f"   {'-'*37}")
         for d in sorted(daily_pnl.keys()):
             pnl = daily_pnl[d]
-            marker = "✓" if pnl > 0 else "✗"
+            marker = "+" if pnl > 0 else "-" if pnl < 0 else " "
             print(f"   {d:15s} {daily_trades[d]:7d} Rs.{pnl:>10,.2f} {marker}")
 
         total_pnl = sum(daily_pnl.values())
         print(f"   {'-'*37}")
         print(f"   {'TOTAL':15s} {sum(daily_trades.values()):7d} Rs.{total_pnl:>10,.2f}")
+
+    # ========================================
+    # 15. INDIVIDUAL TRADE DETAILS
+    # ========================================
+    print(f"\n15. ALL TRADES (raw)")
+    print(f"   {'#':>3} {'Time':20s} {'Txn':4s} {'Symbol':40s} {'Strike':>8s} {'Type':5s} {'Price':>8s} {'Qty':>4s} {'Expiry':12s}")
+    print(f"   {'-'*110}")
+    for i, t in enumerate(trades):
+        et = safe_str(t.get("exchangeTime", ""), "?")
+        txn = safe_str(t.get("transactionType", "?"))
+        sym = get_symbol(t)
+        strike = safe_float(t.get("drvStrikePrice"))
+        opt = safe_str(t.get("drvOptionType", "NA"))
+        price = safe_float(t.get("tradedPrice"))
+        qty = safe_int(t.get("tradedQuantity"))
+        exp = safe_str(t.get("drvExpiryDate", "NA"))
+        print(f"   {i+1:3d} {et:20s} {txn:4s} {sym:40s} {strike:8.0f} {opt:5s} {price:8.2f} {qty:4d} {exp:12s}")
 
     print(f"\n{'='*70}")
     print(f"Analysis complete.")
@@ -502,12 +524,10 @@ def analyze_trades(trades):
 
 
 def export_trades(trades, filename):
-    """Export trades to CSV."""
     import csv
     if not trades:
         print("No trades to export.")
         return
-
     fields = list(trades[0].keys())
     with open(filename, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fields, extrasaction='ignore')
@@ -528,10 +548,20 @@ def main():
         print("ERROR: DHAN_CLIENT_ID not set in .env")
         sys.exit(1)
 
-    # Authenticate
+    # Authenticate with retry for rate limiting
     if get_access_token:
         print("Authenticating with Dhan...")
-        token = get_access_token()
+        token = None
+        for attempt in range(3):
+            try:
+                token = get_access_token()
+                break
+            except RuntimeError as e:
+                if "once every 2 minutes" in str(e) and attempt < 2:
+                    print(f"  Token rate-limited, waiting 120s before retry...")
+                    _time.sleep(120)
+                else:
+                    raise
     else:
         token = os.getenv("DHAN_ACCESS_TOKEN")
         if not token:
@@ -557,7 +587,6 @@ def main():
     all_trades = client.get_all_trades(from_date, to_date)
     print(f"Total trades fetched: {len(all_trades)}")
 
-    # Filter F&O trades only
     fno_trades = [t for t in all_trades if is_fno_trade(t)]
     print(f"F&O trades: {len(fno_trades)}")
 
@@ -566,10 +595,8 @@ def main():
         print("Try a longer range: --days 90 or --days 180")
         return
 
-    # Analyze
     analyze_trades(fno_trades)
 
-    # Export if requested
     if args.export:
         export_file = os.path.join(REPO_ROOT, "data", "fno_trades_export.csv")
         os.makedirs(os.path.dirname(export_file), exist_ok=True)
