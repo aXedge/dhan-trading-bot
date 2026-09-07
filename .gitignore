@@ -18,6 +18,7 @@ data/*.xlsx
 
 # Logs
 logs/*.log
+logs/*.log-*
 logs/*.txt
 
 # Python

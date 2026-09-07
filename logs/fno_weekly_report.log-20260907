@@ -1,4 +1,0 @@
-usage: dhan_fno_avg_pnl.py [-h] [--days DAYS] [--csv CSV_PATH]
-                           [--data-file DATA_FILE] [--from-file FROM_FILE]
-                           [--debug]
-dhan_fno_avg_pnl.py: error: unrecognized arguments: --report
