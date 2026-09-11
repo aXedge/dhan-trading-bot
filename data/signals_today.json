@@ -1,7 +1,118 @@
 {
-  "date": "2026-09-06",
-  "scan_time": "2026-09-06T19:39:12.682594",
+  "date": "2026-09-11",
+  "scan_time": "2026-09-11T10:23:11.423365",
   "basket_size": 30,
-  "signals_count": 0,
-  "signals": []
+  "signals_count": 10,
+  "signals": [
+    {
+      "strategy": "pullback",
+      "symbol": "NYKAA",
+      "entry_price": 340.55,
+      "stop_loss": 316.71,
+      "target": 391.63,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 55.9,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "GLENMARK",
+      "entry_price": 2406.8,
+      "stop_loss": 2238.32,
+      "target": 2767.82,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 53.3,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "ETERNAL",
+      "entry_price": 320.25,
+      "stop_loss": 297.83,
+      "target": 368.29,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 52.6,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "reversal",
+      "symbol": "BAJAJFINSV",
+      "entry_price": 1912.4,
+      "stop_loss": 1816.78,
+      "target": 2065.39,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "rsi": 36.1,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "AUROPHARMA",
+      "entry_price": 1662.7,
+      "stop_loss": 1546.31,
+      "target": 1912.1,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 54.2,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "MCX",
+      "entry_price": 3267.3,
+      "stop_loss": 3038.59,
+      "target": 3757.4,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 57.4,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "APOLLOHOSP",
+      "entry_price": 8860.0,
+      "stop_loss": 8239.8,
+      "target": 10189.0,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 52.8,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "KOTAKBANK",
+      "entry_price": 414.85,
+      "stop_loss": 385.81,
+      "target": 477.08,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 55.8,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "BHEL",
+      "entry_price": 423.9,
+      "stop_loss": 394.23,
+      "target": 487.48,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 50.9,
+      "date": "2026-09-11"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "BAJAJ-AUTO",
+      "entry_price": 11670.0,
+      "stop_loss": 10853.1,
+      "target": 13420.5,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "rsi": 48.9,
+      "date": "2026-09-11"
+    }
+  ]
 }

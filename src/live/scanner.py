@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 from datetime import date, datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,57 +73,66 @@ def fetch_yfinance(symbol, period="6mo"):
     return df
 
 
-def scan_stock(symbol, reversal_config, pullback_config):
-    """Scan a single stock for both reversal and pullback signals."""
+def _safe_rsi(row):
+    """Extract RSI from a prepared row, handling missing/NaN values."""
+    val = row.get("rsi")
+    try:
+        if val is not None and not pd.isna(val):
+            return round(float(val), 1)
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def _build_signal(strategy_name, symbol, last, config):
+    """Build a signal dict using the module's own config keys.
+
+    Module configs store fractions (stop_loss_pct: 0.07 = 7%).
+    The signal stores absolute prices plus percentages for readability.
+    """
+    entry_price = float(last["Close"])
+    sl_frac = float(config.get("stop_loss_pct", 0.05))
+    tgt_frac = float(config.get("target_pct", 0.08))
+
+    return {
+        "strategy": strategy_name,
+        "symbol": symbol,
+        "entry_price": round(entry_price, 2),
+        "stop_loss": round(entry_price * (1 - sl_frac), 2),
+        "target": round(entry_price * (1 + tgt_frac), 2),
+        "stop_loss_pct": round(sl_frac * 100, 1),
+        "target_pct": round(tgt_frac * 100, 1),
+        "rsi": _safe_rsi(last),
+        "date": str(date.today()),
+    }
+
+
+def scan_stock(symbol, rev_config, pb_config):
+    """Scan a single stock for both reversal and pullback signals.
+
+    Returns signal dict or None. Errors are LOGGED, never silently swallowed.
+    """
     df = fetch_yfinance(symbol)
     if len(df) < 60:
         return None
 
     # Check reversal signal
     try:
-        rev_df = reversal.prepare(df, reversal_config)
+        rev_df = reversal.prepare(df, rev_config)
         last = rev_df.iloc[-1]
-        if reversal.should_enter(last, reversal_config):
-            entry_price = float(last["Close"])
-            sl_pct = reversal_config["sl_pct"]
-            target_pct = reversal_config["target_pct"]
-            rsi = float(last.get("RSI", 0))
-            return {
-                "strategy": "reversal",
-                "symbol": symbol,
-                "entry_price": round(entry_price, 2),
-                "stop_loss": round(entry_price * (1 - sl_pct / 100), 2),
-                "target": round(entry_price * (1 + target_pct / 100), 2),
-                "stop_loss_pct": sl_pct,
-                "target_pct": target_pct,
-                "rsi": round(rsi, 1),
-                "date": str(date.today()),
-            }
-    except Exception:
-        pass
+        if reversal.should_enter(last, rev_config):
+            return _build_signal("reversal", symbol, last, rev_config)
+    except Exception as e:
+        print(f"    [WARN] reversal check error on {symbol}: {type(e).__name__}: {e}")
 
     # Check pullback signal
     try:
-        pb_df = pullback.prepare(df, pullback_config)
+        pb_df = pullback.prepare(df, pb_config)
         last = pb_df.iloc[-1]
-        if pullback.should_enter(last, pullback_config):
-            entry_price = float(last["Close"])
-            sl_pct = pullback_config["sl_pct"]
-            target_pct = pullback_config["target_pct"]
-            rsi = float(last.get("RSI", 0))
-            return {
-                "strategy": "pullback",
-                "symbol": symbol,
-                "entry_price": round(entry_price, 2),
-                "stop_loss": round(entry_price * (1 - sl_pct / 100), 2),
-                "target": round(entry_price * (1 + target_pct / 100), 2),
-                "stop_loss_pct": sl_pct,
-                "target_pct": target_pct,
-                "rsi": round(rsi, 1),
-                "date": str(date.today()),
-            }
-    except Exception:
-        pass
+        if pullback.should_enter(last, pb_config):
+            return _build_signal("pullback", symbol, last, pb_config)
+    except Exception as e:
+        print(f"    [WARN] pullback check error on {symbol}: {type(e).__name__}: {e}")
 
     return None
 
@@ -135,21 +145,20 @@ def main():
     basket = load_basket()
     print(f"Scanning {len(basket)} stocks...\n")
 
-    reversal_config = reversal.DEFAULT_CONFIG.copy()
-    pullback_config = pullback.DEFAULT_CONFIG.copy()
+    rev_config = reversal.DEFAULT_CONFIG.copy()
+    pb_config = pullback.DEFAULT_CONFIG.copy()
 
     signals = []
-    import time
 
     for i, sym in enumerate(basket):
         print(f"  Scanning {i+1}/{len(basket)}: {sym}...", end="", flush=True)
-        signal = scan_stock(sym, reversal_config, pullback_config)
+        signal = scan_stock(sym, rev_config, pb_config)
 
         if signal:
             signals.append(signal)
             print(f" {signal['strategy'].upper()} SIGNAL! "
                   f"Entry={signal['entry_price']} SL={signal['stop_loss']} "
-                  f"Target={signal['target']}")
+                  f"Target={signal['target']} RSI={signal['rsi']}")
         else:
             print(" no signal")
 
@@ -171,7 +180,7 @@ def main():
         with os.fdopen(fd, "w") as f:
             json.dump(output, f, indent=2, default=str)
         os.replace(tmp_path, SIGNALS_FILE)
-    except:
+    except Exception:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise
