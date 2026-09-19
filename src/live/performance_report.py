@@ -34,15 +34,19 @@ SIGNALS_FILE = os.path.join(REPO_ROOT, "data", "signals_today.json")
 
 
 def fetch_current_price(symbol):
-    try:
-        ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
-        df = yf.download(ticker, period="5d", auto_adjust=True, progress=False)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        if len(df) > 0:
-            return float(df["Close"].iloc[-1])
-    except Exception:
-        pass
+    """Fetch last close with retries; returns None on failure (never NaN)."""
+    ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
+    for attempt in range(3):
+        try:
+            df = yf.download(ticker, period="5d", auto_adjust=True, progress=False)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            closes = df["Close"].dropna()  # skip NaN bars (yfinance glitch)
+            if len(closes) > 0:
+                return float(closes.iloc[-1])
+        except Exception:
+            pass
+        time.sleep(2)
     return None
 
 
@@ -130,7 +134,7 @@ def main():
             price = fetch_current_price(sym)
             entry = p.get("entry_price", 0)
             qty = p.get("quantity", 0)
-            if price:
+            if price is not None and price == price:  # present and not NaN
                 pnl_pct = (price - entry) / entry * 100
                 pnl_rs = (price - entry) * qty
                 total_unrealized += pnl_rs
