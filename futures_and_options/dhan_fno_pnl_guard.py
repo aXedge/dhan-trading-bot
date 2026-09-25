@@ -25,10 +25,16 @@ WHAT v3 DOES DIFFERENTLY
    kill switch — Stratzy cannot "double down" unnoticed again).
 4. Warning alerts at 50% / 75% of the loss threshold so the day never
    goes silent again.
-5. Keeps a /pnlExit backstop for INTRADAY (MIS) F&O trades only — those
+5. TRAILING STOP: each structure's best MTM ("peak") is tracked in the
+   state file. Once the peak reaches --trail-arm (default Rs.2,000), the
+   effective loss floor ratchets up to --trail-lock x peak (default 50%)
+   and never comes down — a structure that has shown real profit can no
+   longer round-trip into a full loss. Peaks survive across days for
+   carried positions and are forgotten when the structure closes.
+6. Keeps a /pnlExit backstop for INTRADAY (MIS) F&O trades only — those
    ARE covered by Dhan's API. The DELIVERY product type is dropped: it
    guarded nothing.
-6. TOTP retry: 3 attempts, 20s apart (5 auth failures on 2026-09-21 were
+7. TOTP retry: 3 attempts, 20s apart (5 auth failures on 2026-09-21 were
    5 blind cycles).
 
 MODES
@@ -294,7 +300,8 @@ def market_open(now=None):
 # ---------------------------------------------------------------------------
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
-STATE_KEYS = ("alerts", "locked")
+DAILY_KEYS = ("alerts", "locked")     # reset at the start of each day
+PERSIST_KEYS = ("peaks",)             # survive days (trailing memory)
 
 
 def state_path_default():
@@ -303,14 +310,20 @@ def state_path_default():
 
 
 def load_state(path, today):
-    state = {"date": today, "alerts": {}, "locked": []}
+    state = {"date": today, "alerts": {}, "locked": [], "peaks": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
                 saved = json.load(f)
-            if isinstance(saved, dict) and saved.get("date") == today:
-                # keep only known keys, tolerate older files
-                state.update({k: saved.get(k, state[k]) for k in STATE_KEYS})
+            if isinstance(saved, dict):
+                if saved.get("date") == today:
+                    state.update({k: saved.get(k, state[k])
+                                  for k in DAILY_KEYS + PERSIST_KEYS})
+                else:
+                    # new trading day: alert/lockout memory resets, but each
+                    # structure's best MTM must survive so multi-day carried
+                    # positions keep their trailing floor
+                    state["peaks"] = saved.get("peaks", {}) or {}
         except (OSError, ValueError) as e:
             print(f"[STATE] could not read {path}: {e} — starting fresh")
     return state
@@ -400,6 +413,13 @@ def check_once(client, args, state):
         resp.get("data", []) if isinstance(resp, dict) else [])
     structures = group_structures(positions, args.lot_size)
 
+    # forget peaks of structures that no longer exist (closed/expired):
+    # a re-opened structure starts its trailing memory from scratch
+    live_keys = set(structures.keys())
+    for k in list(state.get("peaks", {}).keys()):
+        if k not in live_keys:
+            del state["peaks"][k]
+
     if not structures:
         print(f"[{ts}] No open F&O positions.")
         return True
@@ -418,23 +438,62 @@ def check_once(client, args, state):
             loss_limit = args.loss
 
         mtm = g["mtm"]
+
+        # --- MTM sanity probe: open legs but MTM reads exactly 0 usually
+        # means the positions payload's P&L fields didn't match our guesses
+        # (unrealizedProfit / lastPrice / costPrice). Dump one raw leg,
+        # once per structure per day, so field mapping can be fixed.
+        if mtm == 0.0 and len(g["legs"]) > 0:
+            sent_dbg = state["alerts"].setdefault(key, [])
+            if "zmtm-debug" not in sent_dbg:
+                sent_dbg.append("zmtm-debug")
+                print(f"[DEBUG] {key}: MTM computed as 0 with "
+                      f"{len(g['legs'])} open leg(s) — raw first leg:")
+                print("        " + json.dumps(g["legs"][0])[:600])
+
+        # --- trailing stop: remember the best MTM this structure has
+        # shown; once it reaches --trail-arm, the loss floor ratchets up
+        # to --trail-lock x peak and never comes down within the position.
+        peaks = state.setdefault("peaks", {})
+        peak = peaks.get(key)
+        if peak is None or mtm > peak:
+            peak = mtm
+        peaks[key] = peak
+
+        floor = -loss_limit
+        trail_on = (args.trail_arm > 0 and peak >= args.trail_arm)
+        if trail_on:
+            floor = max(floor, args.trail_lock * peak)
+
         ratio = (abs(mtm) / loss_limit) if mtm < 0 and loss_limit else 0.0
-        status = ("BREACH" if mtm <= -loss_limit else
+        breach = mtm <= floor
+        status = ("TRAIL-BREACH" if breach and floor > -loss_limit else
+                  "BREACH" if breach else
                   "WARN75" if ratio >= 0.75 else
                   "WARN50" if ratio >= 0.50 else
                   "PROFIT-BREACH" if profit_limit and mtm >= profit_limit
-                  else "ok")
+                  else "TRAIL-ARMED" if trail_on else "ok")
 
-        print(f"[{ts}] {key}: {g['lots']} lot(s) | "
-              f"MTM Rs.{mtm:,.0f} / loss-limit Rs.{loss_limit:,.0f} "
+        floor_str = (f"floor Rs.{floor:,.0f}" if trail_on
+                     else f"loss-limit Rs.{-floor:,.0f}")
+        print(f"[{ts}] {key}: {g['lots']} lot(s) | MTM Rs.{mtm:,.0f} | "
+              f"peak Rs.{peak:,.0f} | {floor_str} "
               f"(profit-limit Rs.{profit_limit:,.0f}) -> {status}")
 
         sent = state["alerts"].setdefault(key, [])
 
+        # one-shot notification when the trailing floor first arms
+        if trail_on and "trail" not in sent:
+            sent.append("trail")
+            telegram_send(
+                f"\U0001f512 Trailing stop armed: {key}\n"
+                f"Peak Rs.{peak:,.0f} — loss floor is now Rs.{floor:,.0f}. "
+                f"Profit is protected from here.")
+
         # --- warning alerts (once each per day) ---
         for level in ("50", "75"):
             if level not in sent and ratio >= float(level) / 100 \
-                    and mtm > -loss_limit:
+                    and not breach:
                 sent.append(level)
                 telegram_send(
                     f"\u26a0 F&O guard: {key} at {level}% of loss limit\n"
@@ -458,10 +517,10 @@ def check_once(client, args, state):
                         "\U0001f6d1 Re-entered structure flattened and kill "
                         "switch activated. Manual re-arm required.")
 
-        # --- threshold breach ---
-        if mtm <= -loss_limit:
+        # --- threshold breach (base loss floor, trailing floor, profit) ---
+        if breach:
             _handle_breach(client, args, state, key, g, mtm,
-                           loss_limit, ts, is_loss=True)
+                           floor, ts, is_loss=True)
         elif profit_limit and mtm >= profit_limit:
             _handle_breach(client, args, state, key, g, mtm,
                            profit_limit, ts, is_loss=False)
@@ -489,12 +548,20 @@ def check_once(client, args, state):
 def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
     label = "LOSS" if is_loss else "PROFIT"
     if not args.enforce:
-        print(f"[{ts}] *** {label} THRESHOLD BREACH ({key}: MTM "
-              f"Rs.{mtm:,.0f} vs Rs.{limit:,.0f}) — WATCH mode, no action ***")
-        telegram_send(
-            f"\U0001f534 <b>{label} BREACH</b> {key}\nMTM Rs.{mtm:,.0f} "
-            f"vs threshold Rs.{limit:,.0f}\nGuard is in WATCH mode — "
-            f"no orders placed.")
+        sent = state["alerts"].setdefault(key, [])
+        if "breach" not in sent:
+            sent.append("breach")
+            print(f"[{ts}] *** {label} THRESHOLD BREACH ({key}: MTM "
+                  f"Rs.{mtm:,.0f} vs floor Rs.{limit:,.0f}) — WATCH mode, "
+                  f"no action ***")
+            telegram_send(
+                f"\U0001f534 <b>{label} BREACH</b> {key}\nMTM Rs.{mtm:,.0f} "
+                f"vs floor Rs.{limit:,.0f}\nGuard is in WATCH mode — "
+                f"no orders placed.")
+        else:
+            print(f"[{ts}] {label} breach continues ({key}: MTM "
+                  f"Rs.{mtm:,.0f} vs floor Rs.{limit:,.0f}) — WATCH mode, "
+                  f"already alerted.")
         return
 
     if not market_open():
@@ -508,7 +575,7 @@ def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
     print(f"[{ts}] *** {label} THRESHOLD BREACH — FLATTENING {key} ***")
     telegram_send(
         f"\U0001f534 <b>{label} BREACH — exiting {key}</b>\n"
-        f"MTM Rs.{mtm:,.0f} vs threshold Rs.{limit:,.0f}. "
+        f"MTM Rs.{mtm:,.0f} vs floor Rs.{limit:,.0f}. "
         f"Placing exit orders.")
     flatten_structure(client, g, dry_run=args.dry_run)
     if args.dry_run:
@@ -526,7 +593,7 @@ def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
                 f"{key}</b> — manual intervention required!")
             return
 
-    if is_loss:
+    if is_loss and mtm < 0:
         state["locked"].append({
             "key": key, "time": datetime.now(IST).isoformat(), "mtm": mtm})
         telegram_send(
@@ -561,6 +628,14 @@ def main():
                         help="Optional absolute structure profit override.")
     parser.add_argument("--loss", type=float, default=0,
                         help="Optional absolute structure loss override.")
+    parser.add_argument("--trail-arm", type=float, default=2000,
+                        help="Arm the trailing floor once a structure's "
+                             "peak MTM reaches this many rupees "
+                             "(default 2000; 0 disables trailing).")
+    parser.add_argument("--trail-lock", type=float, default=0.5,
+                        help="Once armed, the loss floor rises to this "
+                             "fraction of the structure's best peak MTM "
+                             "(default 0.5 = lock half the peak).")
     parser.add_argument("--kill-on-reentry", action="store_true",
                         help="On re-entry into a locked structure: flatten "
                              "it and activate the kill switch.")
@@ -609,6 +684,11 @@ def main():
           + (" + flatten + kill switch" if args.kill_on_reentry else " only"))
     print(f"  Backstop    : INTRADAY pnlExit "
           f"({'on' if args.backstop else 'off'})")
+    if args.trail_arm > 0:
+        print(f"  Trailing    : arm at Rs.{args.trail_arm:,.0f}, "
+              f"lock {args.trail_lock * 100:.0f}% of peak")
+    else:
+        print("  Trailing    : off")
     print(f"  Started at  : {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
     print("=" * 60)
 

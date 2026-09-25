@@ -93,7 +93,8 @@ def run(args_overrides, client=None, state=None):
     args = SimpleNamespace(
         per_lot_profit=4500, per_lot_loss=3600, lot_size=65,
         profit=0, loss=0, enforce=False, dry_run=False,
-        kill_on_reentry=False, backstop=True)
+        kill_on_reentry=False, backstop=True,
+        trail_arm=0, trail_lock=0.5)   # trailing OFF in harness default
     for k, v in args_overrides.items():
         setattr(args, k, v)
     client = client or MockClient()
@@ -164,7 +165,83 @@ check("backstop: DELIVERY never used", all(
 # ---------- 9. state daily reset ----------
 fresh = g.load_state("/nonexistent/x.json", "2026-09-22")
 check("state fresh when file missing", fresh == {"date": "2026-09-22",
-                                                 "alerts": {}, "locked": []})
+                                                 "alerts": {}, "locked": [],
+                                                 "peaks": {}})
+
+# ---------- 10. trailing stop (v3.1) ----------
+class MockClientP(MockClient):
+    """Fixed position book, independent of the fill flag."""
+    def __init__(self, pos):
+        super().__init__()
+        self._pos = pos
+    def get_positions(self):
+        return [] if self.filled else self._pos
+
+UP = [dict(POSITIONS[0], unrealizedProfit=1500.0),
+      dict(POSITIONS[1], unrealizedProfit=1000.0)]    # 4 lots, MTM +2,500
+FADE = [dict(POSITIONS[0], unrealizedProfit=500.0),
+        dict(POSITIONS[1], unrealizedProfit=300.0)]   # same position, +800
+SMALL = [dict(POSITIONS[0], unrealizedProfit=900.0),
+         dict(POSITIONS[1], unrealizedProfit=600.0)]  # +1,500 (below arm)
+TR = {"trail_arm": 2000, "trail_lock": 0.5}
+
+# 10a: profit arms the trail, floor ratchets, nothing exits yet
+out, mc, stt = run({"enforce": True, **TR}, client=MockClientP(UP))
+check("trail arms at peak 2,500 -> floor 1,250",
+      "floor Rs.1,250" in out and "TRAIL-ARMED" in out)
+check("trail armed: no orders placed", len(mc.orders) == 0)
+check("peak persisted in state",
+      stt["peaks"].get("NIFTY|2026-09-22") == 2500)
+
+# 10b: today's scenario — winner fades; exit at the floor, not at -8,000
+out, mc, stt2 = run({"enforce": True, **TR}, client=MockClientP(FADE),
+                    state=stt)
+check("fade to +800 breaches floor 1,250 -> TRAIL-BREACH",
+      "TRAIL-BREACH" in out)
+check("trail exit placed orders (2 legs)", len(mc.orders) == 2)
+check("peak held across cycles within the day",
+      stt2["peaks"].get("NIFTY|2026-09-22") == 2500)
+check("no lockout on profit-locking exit",
+      all(l["key"] != "NIFTY|2026-09-22" for l in stt2["locked"]))
+
+# 10c: below the arm threshold -> plain watching, base floor applies
+out, mc, _ = run({"enforce": True, **TR}, client=MockClientP(SMALL))
+check("below arm: base loss-limit applies, no trail",
+      "loss-limit Rs.14,400" in out and "TRAIL" not in out)
+check("below arm: no orders", len(mc.orders) == 0)
+
+# 10d: peaks survive a day rollover, alerts reset
+tmp = "/tmp/guard_state_test.json"
+with open(tmp, "w") as f:
+    json.dump({"date": "2026-09-25", "alerts": {"X": ["50"]},
+               "locked": [{"key": "X"}],
+               "peaks": {"NIFTY|2026-09-22": 2500}}, f)
+st = g.load_state(tmp, "2026-09-26")
+check("peaks survive day rollover",
+      st["peaks"] == {"NIFTY|2026-09-22": 2500})
+check("alerts/locks reset on new day",
+      st["alerts"] == {} and st["locked"] == [])
+
+# 10e: peaks pruned once the structure is gone
+class Empty(MockClient):
+    def get_positions(self):
+        return []
+stt3 = {"date": "2026-09-21", "alerts": {}, "locked": [],
+         "peaks": {"NIFTY|2026-09-22": 2500}}
+out, _, stt3 = run({}, client=Empty(), state=stt3)
+check("flat -> peak memory pruned", stt3["peaks"] == {})
+
+# 10f: zero-MTM sanity probe — legs open, P&L fields absent -> dump raw
+NOUPL = [{"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23300 CE",
+          "drvExpiryDate": "2026-09-29", "productType": "MARGIN",
+          "netQty": -130, "costPrice": 100.0, "securityId": "9999"},
+         {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23700 CE",
+          "drvExpiryDate": "2026-09-29", "productType": "MARGIN",
+          "netQty": 130, "costPrice": 30.0, "securityId": "9998"}]
+out, mc, stt_dbg = run({"enforce": True, **TR}, client=MockClientP(NOUPL))
+check("zero-MTM debug probe fires and dumps raw leg",
+      "[DEBUG]" in out and "raw first leg" in out
+      and "zmtm-debug" in stt_dbg["alerts"]["NIFTY|2026-09-29"])
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
