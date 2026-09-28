@@ -19,6 +19,11 @@ spec.loader.exec_module(g)
 # tests simulate market hours (guard refuses to place orders otherwise)
 g.market_open = lambda now=None: True
 
+# eliminate sleeps inside the guard for test speed
+# (only the guard module's reference is replaced; the real time module is
+# untouched)
+g.time = SimpleNamespace(sleep=lambda s: None)
+
 # --- fixture: today's actual structure (4-lot bear call 23300/23700) ---
 POSITIONS = [
     {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23300 CE",
@@ -73,6 +78,9 @@ class MockClient:
         self.pnl_exit_calls = []
         self.kill_calls = 0
         self.filled = False  # simulate fills: flat once exit orders placed
+        self.order_book = []  # pre-existing (e.g. pending) orders
+    def get_order_list(self):
+        return self.order_book
     def get_positions(self):
         return [] if self.filled else POSITIONS
     def get_fund_limits(self): return {"availabelBalance": "264000"}
@@ -242,6 +250,46 @@ out, mc, stt_dbg = run({"enforce": True, **TR}, client=MockClientP(NOUPL))
 check("zero-MTM debug probe fires and dumps raw leg",
       "[DEBUG]" in out and "raw first leg" in out
       and "zmtm-debug" in stt_dbg["alerts"]["NIFTY|2026-09-29"])
+
+# ---------- 11. exit-race protections (2026-09-28 live-fire postmortem) ----------
+# The 11:40 duplicate-order bug: exit orders accepted, positions book stale
+# at +4s, retry re-fired the SAME stale legs and overshot one leg into an
+# opposite position. Two fixes: fresh-positions retry + pending-order skip.
+
+class MockRace(MockClient):
+    """Exits accepted, but the positions book lags one fetch."""
+    def __init__(self):
+        super().__init__()
+        self._post_fill = 0
+    def get_positions(self):
+        if not self.filled:
+            return POSITIONS
+        self._post_fill += 1
+        return POSITIONS if self._post_fill == 1 else []
+
+out, mc, stt_r = run({"enforce": True}, client=MockRace())
+check("race: stale book does NOT duplicate exit orders", len(mc.orders) == 2)
+check("race: lockout still recorded after clean exit",
+      any(l["key"] == "NIFTY|2026-09-22" for l in stt_r["locked"]))
+
+# pending exit order for the LONG leg (11102, exit side SELL) -> only the
+# short leg (11101, BUY) gets an order; the pending one is skipped
+pend = [{"securityId": "11102", "transactionType": "SELL",
+         "orderStatus": "PENDING"}]
+mp = MockClient()
+mp.order_book = pend
+out, mc, _ = run({"enforce": True}, client=mp)
+check("pending exit is skipped, not stacked",
+      len(mc.orders) == 1 and mc.orders[0]["transactionType"] == "BUY"
+      and "[SKIP]" in out)
+
+# a filled old order must NOT block a new exit (only PENDING states count)
+filled_old = [{"securityId": "11102", "transactionType": "SELL",
+               "orderStatus": "EXECUTED"}]
+mf = MockClient()
+mf.order_book = filled_old
+out, mc, _ = run({"enforce": True}, client=mf)
+check("EXECUTED (old) orders do not block exits", len(mc.orders) == 2)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

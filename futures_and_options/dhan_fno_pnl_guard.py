@@ -19,6 +19,10 @@ WHAT v3 DOES DIFFERENTLY
 2. Enforces its own exits: when a structure crosses its per-lot threshold,
    the guard places the exit orders itself (market, per leg) and verifies
    the fills. It does not outsource protection to Dhan's pnlExit.
+   Duplicate-exit protection: the retry path re-reads live positions
+   instead of re-firing stale legs, and legs with an exit order already
+   pending in the book are skipped (added after the 2026-09-28 live-fire,
+   where a slow-reflecting positions book caused stacked duplicate exits).
 3. Same-day re-entry lockout: a structure exited at a loss is locked for
    the rest of the day; if a new position appears on that underlying+expiry,
    the guard alerts (and with --kill-on-reentry, exits it and activates the
@@ -362,15 +366,43 @@ def exit_order_body(client_id, leg):
     return body
 
 
+def _pending_exit_orders(client):
+    """
+    Return the set of (securityId, transactionType) of today's exit orders
+    still sitting in the order book (not yet filled / cancelled). Used to
+    avoid stacking duplicate market exits when fill reflection is slow.
+    """
+    try:
+        orders = client.get_order_list()
+    except Exception:
+        return set()
+    if not isinstance(orders, list):
+        return set()
+    pending = set()
+    for o in orders:
+        status = str(o.get("orderStatus", "")).upper()
+        if status in ("PENDING", "TRIGGER_PENDING", "TRANSIT", "OPEN"):
+            pending.add((str(o.get("securityId", "")),
+                         str(o.get("transactionType", "")).upper()))
+    return pending
+
+
 def flatten_structure(client, structure, dry_run=False):
     """
     Place market exit orders for every open leg of a structure.
+    Legs that already have a pending exit order in the book are skipped
+    rather than stacked (duplicate-exit protection).
     Returns list of (leg_symbol, order_response_or_None_if_dry).
     """
+    pending = set() if dry_run else _pending_exit_orders(client)
     results = []
     for leg in structure["legs"]:
         sym = leg.get("tradingSymbol", "?")
         body = exit_order_body(client.client_id, leg)
+        if (str(leg.get("securityId", "")),
+                body["transactionType"]) in pending:
+            print(f"    [SKIP] {sym}: exit order already pending")
+            continue
         print(f"    [EXIT] {sym}: {body['transactionType']} "
               f"{body['quantity']} MKT ({body['productType']})")
         if dry_run:
@@ -399,6 +431,20 @@ def verify_flat(client, structure):
         except (TypeError, ValueError):
             return False
     return True
+
+
+def refresh_structure(client, structure, args):
+    """
+    Re-fetch positions and rebuild this structure from FRESH data —
+    never trusts the stale leg list captured at the start of the cycle.
+    Returns the fresh structure dict, or None if the key is gone (flat).
+    """
+    resp = client.get_positions()
+    positions = resp if isinstance(resp, list) else (
+        resp.get("data", []) if isinstance(resp, dict) else [])
+    structures = group_structures(positions, args.lot_size)
+    key = f"{structure['underlying']}|{structure['expiry']}"
+    return structures.get(key)
 
 
 # ---------------------------------------------------------------------------
@@ -509,7 +555,7 @@ def check_once(client, args, state):
                 f"Current MTM Rs.{mtm:,.0f}.")
             if args.kill_on_reentry and args.enforce and market_open():
                 flatten_structure(client, g, dry_run=False)
-                time.sleep(4)
+                time.sleep(8)
                 if verify_flat(client, g):
                     ks = client.kill_switch_activate()
                     print(f"    [KILL SWITCH] {json.dumps(ks)[:200]}")
@@ -546,7 +592,10 @@ def check_once(client, args, state):
 
 
 def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
-    label = "LOSS" if is_loss else "PROFIT"
+    if is_loss and limit > 0:
+        label = "TRAIL"      # profit-locking exit at the trailing floor
+    else:
+        label = "LOSS" if is_loss else "PROFIT"
     if not args.enforce:
         sent = state["alerts"].setdefault(key, [])
         if "breach" not in sent:
@@ -582,16 +631,18 @@ def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
         print(f"[{ts}] DRY RUN — orders above were NOT placed.")
         return
 
-    time.sleep(4)
+    time.sleep(8)  # let market-order fills propagate into the positions book
     if not verify_flat(client, g):
-        print(f"[{ts}] legs still open — retrying once")
-        flatten_structure(client, g, dry_run=False)
-        time.sleep(4)
-        if not verify_flat(client, g):
-            telegram_send(
-                "\U0001f6a8 <b>GUARD FAILED TO FLATTEN "
-                f"{key}</b> — manual intervention required!")
-            return
+        print(f"[{ts}] legs still open after exit — re-checking FRESH positions")
+        remaining = refresh_structure(client, g, args)
+        if remaining and remaining["legs"]:
+            flatten_structure(client, remaining, dry_run=False)
+            time.sleep(8)
+            if not verify_flat(client, remaining):
+                telegram_send(
+                    "\U0001f6a8 <b>GUARD FAILED TO FLATTEN "
+                    f"{key}</b> — manual intervention required!")
+                return
 
     if is_loss and mtm < 0:
         state["locked"].append({
