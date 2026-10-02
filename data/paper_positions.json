@@ -1,1 +1,120 @@
-{"positions": [], "closed_trades": []}
+{
+  "positions": [
+    {
+      "strategy": "pullback",
+      "symbol": "GLENMARK",
+      "entry_date": "2026-09-11",
+      "entry_price": 2408.6,
+      "stop_loss": 2240.0,
+      "target": 2769.89,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "quantity": 10,
+      "status": "OPEN",
+      "entry_time": "2026-09-11T10:26:01.134712"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "NYKAA",
+      "entry_date": "2026-09-11",
+      "entry_price": 340.6,
+      "stop_loss": 316.76,
+      "target": 391.69,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "quantity": 73,
+      "status": "OPEN",
+      "entry_time": "2026-09-11T10:26:01.134768"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "ETERNAL",
+      "entry_date": "2026-09-11",
+      "entry_price": 319.8,
+      "stop_loss": 297.41,
+      "target": 367.77,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "quantity": 78,
+      "status": "OPEN",
+      "entry_time": "2026-09-11T10:26:01.134806"
+    },
+    {
+      "strategy": "pullback",
+      "symbol": "AUROPHARMA",
+      "entry_date": "2026-09-11",
+      "entry_price": 1665.3,
+      "stop_loss": 1548.73,
+      "target": 1915.1,
+      "stop_loss_pct": 7.0,
+      "target_pct": 15.0,
+      "quantity": 15,
+      "status": "OPEN",
+      "entry_time": "2026-09-11T10:26:01.134879"
+    },
+    {
+      "strategy": "reversal",
+      "symbol": "ABCAPITAL",
+      "entry_date": "2026-09-16",
+      "entry_price": 382.8,
+      "stop_loss": 363.66,
+      "target": 413.42,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "quantity": 65,
+      "status": "OPEN",
+      "entry_time": "2026-09-16T15:05:01.941933"
+    },
+    {
+      "strategy": "reversal",
+      "symbol": "RADICO",
+      "entry_date": "2026-10-01",
+      "entry_price": 4238.7,
+      "stop_loss": 4026.77,
+      "target": 4577.8,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "quantity": 5,
+      "status": "OPEN",
+      "entry_time": "2026-10-01T15:05:01.496044"
+    }
+  ],
+  "closed_trades": [
+    {
+      "strategy": "reversal",
+      "symbol": "BAJAJFINSV",
+      "entry_date": "2026-09-11",
+      "entry_price": 1910.7,
+      "stop_loss": 1815.16,
+      "target": 2063.56,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "quantity": 13,
+      "status": "CLOSED",
+      "entry_time": "2026-09-11T10:26:01.134839",
+      "exit_date": "2026-09-24",
+      "exit_price": 1815.16,
+      "exit_reason": "SL hit",
+      "pnl_pct": -5.000261684199506,
+      "pnl_rs": -1242.0199999999993
+    },
+    {
+      "strategy": "reversal",
+      "symbol": "BAJAJ-AUTO",
+      "entry_date": "2026-09-28",
+      "entry_price": 10985.0,
+      "stop_loss": 10435.75,
+      "target": 11863.8,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "quantity": 2,
+      "status": "CLOSED",
+      "entry_time": "2026-09-28T15:05:01.775758",
+      "exit_date": "2026-10-01",
+      "exit_price": 10435.75,
+      "exit_reason": "SL hit",
+      "pnl_pct": -5.0,
+      "pnl_rs": -1098.5
+    }
+  ]
+}

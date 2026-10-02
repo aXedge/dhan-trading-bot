@@ -87,3 +87,9 @@ logs/*.log
 data/*.json
 data/price_cache/
 logs/*.log
+data/dhan_token.json
+data/dhan_token.json.lock
+data/dhan_token.json
+data/dhan_token.json.lock
+data/dhan_token.json
+data/dhan_token.json.lock
