@@ -35,8 +35,8 @@ Pipeline per exit episode:
                    record the best / worst / close marks a HELD position
                    would have shown.
   Step 4  CLASSIFY
-                   hold_close < exit_mtm   -> SAVED-FROM-LOSS
-                   hold_close > exit_mtm   -> LIMITED-PROFIT
+                   hold_close < exit_mtm   -> SAVED-FROM-LOSS (HELPED)
+                   hold_close > exit_mtm   -> LIMITED-PROFIT (PREMATURE)
                    |hold_close - exit_mtm| < tol -> NEUTRAL
                    and append one CSV row per episode to data/trail_audit.csv
                    (dupes by date+key+exit_time are skipped on re-runs).
@@ -90,7 +90,7 @@ RE_MTM = re.compile(
     r"^\[(\d{2}:\d{2}:\d{2})\]\s+(.+?):\s+(\d+) lot\(s\)\s+\|"
     r"\s+MTM Rs\.(-?[\d,]+(?:\.\d+)?)")
 RE_PEAK = re.compile(r"peak Rs\.(-?[\d,]+(?:\.\d+)?)")
-RE_FLATTEN = re.compile(r"FLATTENING\s+(.+?)\s+\*{3}")
+RE_FLATTEN = re.compile(r"(\w+) THRESHOLD BREACH.{0,6}FLATTENING\s+(.+?)\s+\*{3}")
 RE_EXIT = re.compile(r"\[EXIT\]\s+(\S+):\s+(BUY|SELL)\s+(\d+)\s+MKT")
 RE_SYM = re.compile(
     r"^(.+?)-([A-Za-z]{3})(\d{4})-(\d+)-([CP])[EP]$")  # NIFTY-Sep2026-23250-CE
@@ -125,9 +125,11 @@ def parse_log(text):
             continue
         m = RE_FLATTEN.search(line)
         if m:
-            key = m.group(1).strip()
+            exit_type = m.group(1).upper()
+            key = m.group(2).strip()
             ep(cur_date, key)["exits"].append(
                 line[1:9])  # [HH:MM:SS] prefix of this cycle
+            ep(cur_date, key).setdefault("exit_types", []).append(exit_type)
             cur_exit = (cur_date, key)
             continue
         m = RE_EXIT.search(line)
@@ -320,8 +322,15 @@ def analyse_episode(episode, closes, min_samples):
         verdict = "LIMITED-PROFIT"
     else:
         verdict = "NEUTRAL"
+    # plain-language answer to "did the stop help, or was it premature?"
+    verdict_plain = {"SAVED-FROM-LOSS": "HELPED",
+                     "LIMITED-PROFIT": "PREMATURE",
+                     "NEUTRAL": "NEUTRAL"}[verdict]
+    low_n = len(xs) < 5
 
-    return {"verdict": verdict, "confidence": "LOW" if conflict else "OK",
+    return {"verdict": verdict, "verdict_plain": verdict_plain,
+            "exit_type": (episode.get("exit_types") or ["?"])[0],
+            "confidence": "LOW" if (conflict or low_n) else "OK",
             "exit_mtm": exit_mtm, "peak": peak, "n": len(xs),
             "hold_worst": worst, "hold_best": best, "hold_close": final,
             "delta": lin["b"] if lin else None,
@@ -335,6 +344,30 @@ def fmt(v):
     return f"{v:,.0f}" if isinstance(v, (int, float)) else "-"
 
 
+CSV_COLUMNS = ["date", "key", "exit_type", "exit_time", "exit_mtm", "peak",
+               "hold_worst", "hold_best", "hold_close", "verdict",
+               "verdict_plain", "confidence", "method", "delta_per_pt", "iv",
+               "samples"]
+
+
+def _ensure_csv_schema(path, columns):
+    """If the CSV header is stale, rewrite it keeping old rows (blank-padded)."""
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return
+    with open(path, newline="") as f:
+        rows = list(csv.reader(f))
+    if not rows or rows[0] == columns:
+        return
+    old = rows[0]
+    out = [columns]
+    for r in rows[1:]:
+        rec = dict(zip(old, r))
+        out.append([rec.get(c, "") for c in columns])
+    with open(path, "w", newline="") as f:
+        csv.writer(f).writerows(out)
+    print(f"[migrated] {path}: schema updated, {len(out) - 1} row(s) kept")
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -344,7 +377,9 @@ def main():
     ap.add_argument("--csv", default="data/trail_audit.csv")
     ap.add_argument("--date", default=None,
                     help="audit only this date (default: every date found)")
-    ap.add_argument("--min-samples", type=int, default=5)
+    ap.add_argument("--min-samples", type=int, default=3,
+                    help="min MTM samples before the exit to fit a "
+                         "model (default 3; <5 is flagged LOW)")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
 
@@ -413,26 +448,32 @@ def main():
         print(f"  hold close  : {fmt(r['hold_close'])}"
               + (f"   [lin {fmt(r['lin_close'])} / bs {fmt(r['bs_close'])}]"
                  if r.get("lin_close") and r.get("bs_close") else ""))
+        print(f"  exit type   : {r.get('exit_type', '?')}")
+        print(f"  PLAIN       : {r['verdict_plain']} — holding would have "
+              f"closed at {fmt(r['hold_close'])} vs {fmt(r['exit_mtm'])} "
+              f"locked "
+              f"({fmt((r['hold_close'] or 0) - r['exit_mtm'])} given up)")
         print(f"  VERDICT     : {r['verdict']}  ({r['confidence']}, "
               f"n={r['n']} samples)")
 
     if not results:
         return 0
-    new = os.path.exists(args.csv)
+    _ensure_csv_schema(args.csv, CSV_COLUMNS)
+    new = (not os.path.exists(args.csv)) or os.path.getsize(args.csv) == 0
     with open(args.csv, "a", newline="") as f:
         w = csv.writer(f)
-        if not new:
-            w.writerow(["date", "key", "exit_time", "exit_mtm", "peak",
-                        "hold_worst", "hold_best", "hold_close", "verdict",
-                        "confidence", "method", "delta_per_pt", "iv",
-                        "samples"])
+        if new:
+            w.writerow(CSV_COLUMNS)
+
         def num(v):
             return int(round(v)) if isinstance(v, (int, float)) else ""
         for r in results:
-            w.writerow([r["date"], r["key"], r.get("exit_time", ""),
+            w.writerow([r["date"], r["key"], r.get("exit_type", ""),
+                        r.get("exit_time", ""),
                         num(r.get("exit_mtm")), num(r.get("peak")),
                         num(r.get("hold_worst")), num(r.get("hold_best")),
                         num(r.get("hold_close")), r["verdict"],
+                        r.get("verdict_plain", ""),
                         r.get("confidence", ""), r.get("method", ""),
                         num(r.get("delta")),
                         f"{r['sigma']:.3f}" if r.get("sigma") else "",
@@ -502,6 +543,8 @@ def run_selftest():
     r = analyse_episode(e, mk_bars(fade), 5)
     assert r["exit_mtm"] == 2450 and r["peak"] == 5258
     assert r["verdict"] == "LIMITED-PROFIT", r
+    assert r["verdict_plain"] == "PREMATURE", r
+    assert r["exit_type"] == "LOSS", r
     assert r["hold_close"] > r["exit_mtm"] + 1000, r
     assert r["hold_worst"] < r["exit_mtm"] < r["hold_best"], \
         "hold path ordering: worst < exit < best"
@@ -510,6 +553,7 @@ def run_selftest():
                     ("14:00", 23060), ("14:35", 23120), ("15:25", 23150)]
     r2 = analyse_episode(e, mk_bars(rally), 5)
     assert r2["verdict"] == "SAVED-FROM-LOSS", r2
+    assert r2["verdict_plain"] == "HELPED", r2
     assert r2["hold_close"] < r2["exit_mtm"], r2
 
     print("[SELFTEST] parse, legs, calibration, projection, verdicts: "

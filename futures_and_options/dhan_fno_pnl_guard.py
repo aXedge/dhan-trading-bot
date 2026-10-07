@@ -68,6 +68,13 @@ Cron (every 5 minutes during market hours):
        timeout 120 python futures_and_options/dhan_fno_pnl_guard.py \
        --enforce --once >> logs/fno_guard.log 2>&1'
 
+Adaptive polling (every minute; does nothing unless a position is open, in
+which case it samples at --fast-interval, default 30s, inside one cron call):
+    * 9-15 * * 1-5 flock -n /tmp/fno_guard.lock bash -c \
+      'cd /home/kay22_ind/dhan-trading-bot && source venv/bin/activate && \
+       timeout 120 python futures_and_options/dhan_fno_pnl_guard.py \
+       --enforce --fast >> logs/fno_guard.log 2>&1'
+
 State: data/fno_guard_state.json (alert levels sent + lockouts, resets daily)
 
 Authentication: src/auth.py (PIN + TOTP). Telegram alerts use
@@ -197,6 +204,9 @@ class DhanClient:
     def place_order(self, body):
         return self._request("POST", "/orders", json_body=body)
 
+    def cancel_order(self, order_id):
+        return self._request("DELETE", f"/orders/{order_id}")
+
     def set_pnl_exit(self, profit_value, loss_value, product_types,
                      enable_kill_switch=False):
         # Dhan rejects positive lossValue — always send negative.
@@ -313,6 +323,56 @@ def state_path_default():
     return os.path.join(root, "data", "fno_guard_state.json")
 
 
+FAST_STALE_MINUTES = 30   # ignore a hot flag older than this (guard died?)
+
+
+def hot_flag_path(state_path):
+    """Path of the adaptive-polling flag (sits beside the state file)."""
+    return os.path.join(os.path.dirname(state_path) or ".",
+                        "fno_guard_hot.json")
+
+
+def write_hot_flag(state_path, armed_keys):
+    """
+    Record whether any structure's trailing stop is currently armed.
+    The fast poller reads this: when it says 'not armed' the poller does
+    no API work at all. Written atomically so a reader never sees half a file.
+    """
+    path = hot_flag_path(state_path)
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"armed": bool(armed_keys),
+                   "keys": list(armed_keys),
+                   "updated": datetime.now(IST).isoformat()}, f)
+    os.replace(tmp, path)
+
+
+def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
+    """
+    True when a fresh 'trailing stop armed' flag exists — i.e. the fast
+    poller should run a full cycle. A flag older than `stale_minutes` is
+    ignored, so if the guard dies while armed the fast poller stops rather
+    than hammering the API forever (the 5-minute guard re-arms it).
+    """
+    path = hot_flag_path(state_path)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return False
+    if not data.get("armed"):
+        return False
+    try:
+        updated = datetime.fromisoformat(data["updated"])
+    except (KeyError, ValueError):
+        return False
+    age_min = (datetime.now(IST) - updated).total_seconds() / 60.0
+    return 0 <= age_min <= stale_minutes
+
+
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {}}
     if os.path.exists(path):
@@ -366,6 +426,109 @@ def exit_order_body(client_id, leg):
     return body
 
 
+def stop_trigger_price(structure, leg, loss_limit):
+    """
+    The price of `leg` at which the structure's MTM would reach the loss
+    limit, holding every other leg at its current lastPrice. Used to place a
+    resting broker-side stop on the short (risk) leg. None if unusable.
+    """
+    try:
+        net = int(leg.get("netQty", 0) or 0)
+        if net >= 0:
+            return None                 # long legs: max loss = premium paid
+        last = float(leg.get("lastPrice") or 0)
+        cost = float(leg.get("costPrice") or 0)
+        if last <= 0:
+            return None
+        others = 0.0
+        for l in structure["legs"]:
+            if l is leg:
+                continue
+            others += (int(l.get("netQty", 0) or 0)
+                       * (float(l.get("lastPrice") or 0)
+                          - float(l.get("costPrice") or 0)))
+        # net*(X - cost) + others = -loss_limit  ->  solve for X
+        return round(cost + (-loss_limit - others) / net, 2)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def sl_order_body(client_id, leg, trigger, buffer_pct):
+    """
+    A resting STOP_LOSS (limit) order that buys back a short leg.
+    SL-M is banned for options on Dhan, so this must be a limit stop: the
+    limit sits `buffer_pct` beyond the trigger to improve fill odds in a
+    fast move (accepting a worse fill when it triggers).
+    """
+    body = {
+        "dhanClientId": client_id,
+        "transactionType": "BUY",                 # closing a short leg
+        "exchangeSegment": leg.get("exchangeSegment"),
+        "productType": leg.get("productType", "MARGIN"),
+        "orderType": "STOP_LOSS",
+        "validity": "DAY",
+        "securityId": str(leg.get("securityId", "")),
+        "quantity": abs(int(leg.get("netQty", 0) or 0)),
+        "price": round(trigger * (1 + buffer_pct / 100.0), 2),
+        "triggerPrice": trigger,
+    }
+    for opt in ("drvExpiryDate", "drvOptionType", "drvStrikePrice"):
+        if leg.get(opt) is not None:
+            body[opt] = leg.get(opt)
+    return body
+
+
+def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
+    """
+    Place one resting stop-loss LIMIT order per short leg, at the price where
+    the structure's MTM would hit the loss limit. Broker-side, so it protects
+    even when this process is blind (auth gap, crash). Placed once per leg;
+    cancelled when the structure closes or the guard exits it.
+    """
+    book = state.setdefault("sl_orders", {}).setdefault(key, {})
+    for leg in g["legs"]:
+        if int(leg.get("netQty", 0) or 0) >= 0:
+            continue                              # only short legs
+        sec = str(leg.get("securityId", ""))
+        if sec in book and book[sec] != "failed":
+            continue                              # already resting
+        trigger = stop_trigger_price(g, leg, loss_limit)
+        if trigger is None:
+            continue
+        body = sl_order_body(client.client_id, leg, trigger, args.sl_buffer_pct)
+        if args.dry_run:
+            print(f"[{ts}]   [SL-DRY] {leg.get('tradingSymbol', '?')}: "
+                  f"BUY {body['quantity']} STOP_LOSS trig {trigger} "
+                  f"limit {body['price']}")
+            book[sec] = "dry"
+            continue
+        resp = client.place_order(body)
+        ok = isinstance(resp, dict) and "orderId" in resp
+        book[sec] = str(resp.get("orderId")) if ok else "failed"
+        print(f"[{ts}]   [SL] {leg.get('tradingSymbol', '?')}: resting stop "
+              f"trig Rs.{trigger} limit Rs.{body['price']} -> "
+              + (f"orderId {book[sec]}" if ok
+                 else "FAILED: " + json.dumps(resp)[:120]))
+
+
+def _cancel_sl_orders(client, state, key=None, dry_run=False):
+    """Cancel resting stop orders (all, or one structure's) and forget them."""
+    book = state.setdefault("sl_orders", {})
+    for k in ([key] if key else list(book.keys())):
+        for sec, oid in list(book.get(k, {}).items()):
+            if oid in ("dry", "failed", "", None):
+                continue
+            if dry_run:
+                print(f"  [SL-DRY] cancel resting stop {oid}")
+            else:
+                try:
+                    client.cancel_order(oid)
+                    print(f"  [SL] cancelled resting stop {oid}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"  [SL] cancel failed for {oid}: {str(e)[:80]}")
+        book.pop(k, None)
+
+
 def _pending_exit_orders(client):
     """
     Return the set of (securityId, transactionType) of today's exit orders
@@ -382,6 +545,9 @@ def _pending_exit_orders(client):
     for o in orders:
         status = str(o.get("orderStatus", "")).upper()
         if status in ("PENDING", "TRIGGER_PENDING", "TRANSIT", "OPEN"):
+            if str(o.get("orderType", "")).upper() in ("STOP_LOSS",
+                                                       "STOP_LOSS_MARKET"):
+                continue          # our resting stop, not a market exit
             pending.add((str(o.get("securityId", "")),
                          str(o.get("transactionType", "")).upper()))
     return pending
@@ -465,9 +631,14 @@ def check_once(client, args, state):
     for k in list(state.get("peaks", {}).keys()):
         if k not in live_keys:
             del state["peaks"][k]
+    for k in list(state.get("sl_orders", {}).keys()):
+        if k not in live_keys:
+            _cancel_sl_orders(client, state, key=k, dry_run=args.dry_run)
 
     if not structures:
         print(f"[{ts}] No open F&O positions.")
+        _cancel_sl_orders(client, state, dry_run=args.dry_run)
+        write_hot_flag(args.state_file, [])   # flat -> fast poller idles
         return True
 
     total_lots = sum(g["lots"] for g in structures.values())
@@ -510,6 +681,10 @@ def check_once(client, args, state):
         trail_on = (args.trail_arm > 0 and peak >= args.trail_arm)
         if trail_on:
             floor = max(floor, args.trail_lock * peak)
+
+        # --- resting broker-side stop on the short leg(s) (optional) ---
+        if args.sl_order:
+            _ensure_sl_orders(client, args, state, key, g, loss_limit, ts)
 
         ratio = (abs(mtm) / loss_limit) if mtm < 0 and loss_limit else 0.0
         breach = mtm <= floor
@@ -588,6 +763,10 @@ def check_once(client, args, state):
                   f"{'set' if ok else 'FAILED'} "
                   f"profit Rs.{profit_value:,.0f} / loss Rs.{loss_value:,.0f}")
 
+    # adaptive polling: ANY open position flags the every-minute poller to
+    # sample fast; cleared when the book is flat.
+    write_hot_flag(args.state_file, list(structures.keys()))
+
     return True
 
 
@@ -626,6 +805,7 @@ def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
         f"\U0001f534 <b>{label} BREACH — exiting {key}</b>\n"
         f"MTM Rs.{mtm:,.0f} vs floor Rs.{limit:,.0f}. "
         f"Placing exit orders.")
+    _cancel_sl_orders(client, state, key=key, dry_run=args.dry_run)
     flatten_structure(client, g, dry_run=args.dry_run)
     if args.dry_run:
         print(f"[{ts}] DRY RUN — orders above were NOT placed.")
@@ -698,7 +878,31 @@ def main():
     parser.add_argument("--once", action="store_true",
                         help="Single pass and exit (cron).")
     parser.add_argument("--state-file", default=state_path_default())
+    parser.add_argument("--fast-interval", type=int, default=30,
+                        help="With --fast: seconds between samples while a "
+                             "position is open (default 30).")
+    parser.add_argument("--fast-window", type=int, default=55,
+                        help="With --fast: seconds to keep sampling before "
+                             "exiting (default 55 = one */1 cron invocation).")
+    parser.add_argument("--sl-order", action="store_true",
+                        help="Place a resting stop-loss LIMIT on each short "
+                             "leg when a position appears, to cap the loss "
+                             "broker-side (SL-M is banned for options). "
+                             "Default off — test with --dry-run first.")
+    parser.add_argument("--sl-buffer-pct", type=float, default=2.0,
+                        help="Limit buffer beyond the stop trigger, in %%. "
+                             "Default 2.0.")
+    parser.add_argument("--fast", action="store_true",
+                        help="Adaptive poll: exit immediately with NO API "
+                             "call unless the trailing stop is armed (per "
+                             "the hot flag). Runs one normal pass when "
+                             "armed. Intended for an every-minute cron.")
     args = parser.parse_args()
+
+    # --- adaptive polling gate: no armed trailing stop -> no API call ---
+    if args.fast and not hot_flag_active(args.state_file):
+        print("[fast] no open position — skipping cycle (no API call).")
+        sys.exit(0)
 
     client_id = os.environ.get("DHAN_CLIENT_ID")
     if not client_id:
@@ -740,6 +944,9 @@ def main():
               f"lock {args.trail_lock * 100:.0f}% of peak")
     else:
         print("  Trailing    : off")
+    if args.sl_order:
+        print(f"  Resting stop: SL-L on short legs, buffer "
+              f"{args.sl_buffer_pct:.1f}%")
     print(f"  Started at  : {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
     print("=" * 60)
 
@@ -753,6 +960,21 @@ def main():
         sys.exit(1)
 
     try:
+        if args.fast:
+            deadline = time.time() + args.fast_window
+            n = 0
+            while True:
+                n += 1
+                check_once(client, args, state)
+                save_state(args.state_file, state)
+                if not hot_flag_active(args.state_file):
+                    print(f"\n[fast] position closed after {n} sample(s).")
+                    break
+                if time.time() + args.fast_interval > deadline:
+                    break
+                time.sleep(args.fast_interval)
+            print(f"\n[DONE] Fast pass complete ({n} sample(s)), exiting.")
+            sys.exit(0)
         if args.once:
             ok = check_once(client, args, state)
             save_state(args.state_file, state)

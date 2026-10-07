@@ -10,6 +10,9 @@ from types import SimpleNamespace
 # Load the guard from the same directory as this test file,
 # so the pair works anywhere (laptop, VM, CI).
 HERE = os.path.dirname(os.path.abspath(__file__))
+import tempfile
+TMP = tempfile.mkdtemp()
+SF = os.path.join(TMP, "fno_guard_state.json")   # isolated state/hot-flag
 spec = importlib.util.spec_from_file_location(
     "guard", os.path.join(HERE, "dhan_fno_pnl_guard.py"))
 g = importlib.util.module_from_spec(spec)
@@ -88,6 +91,8 @@ class MockClient:
         self.orders.append(body)
         self.filled = True  # market orders fill immediately
         return {"orderId": 999 + len(self.orders)}
+    def cancel_order(self, oid):
+        return {"orderId": oid, "orderStatus": "CANCELLED"}
     def get_pnl_exit(self): return {"pnlExitStatus": "ACTIVE",
                                     "profit": "18000", "loss": "-14400"}
     def set_pnl_exit(self, p, l, pt, enable_kill_switch=False):
@@ -102,7 +107,10 @@ def run(args_overrides, client=None, state=None):
         per_lot_profit=4500, per_lot_loss=3600, lot_size=65,
         profit=0, loss=0, enforce=False, dry_run=False,
         kill_on_reentry=False, backstop=True,
-        trail_arm=0, trail_lock=0.5)   # trailing OFF in harness default
+        trail_arm=0, trail_lock=0.5,   # trailing OFF in harness default
+        sl_order=False, sl_buffer_pct=2.0,
+        fast_interval=30, fast_window=55,
+        state_file=SF)
     for k, v in args_overrides.items():
         setattr(args, k, v)
     client = client or MockClient()
@@ -290,6 +298,107 @@ mf = MockClient()
 mf.order_book = filled_old
 out, mc, _ = run({"enforce": True}, client=mf)
 check("EXECUTED (old) orders do not block exits", len(mc.orders) == 2)
+
+# ---------- 12. adaptive polling (hot flag) ----------
+# trail armed -> flag active so the every-minute poller runs full cycles
+out, mc, stt = run({"trail_arm": 2000, "trail_lock": 0.5,
+                    "state_file": SF},
+                   state={"date": "2026-09-21", "alerts": {}, "locked": [],
+                          "peaks": {"NIFTY|2026-09-22": 5000}})
+check("armed trailing stop writes the hot flag", g.hot_flag_active(SF))
+
+# flat -> flag cleared, poller idles
+flat = MockClient(); flat.filled = True
+out, mc, stt = run({"trail_arm": 2000, "state_file": SF}, client=flat)
+check("flat market clears the hot flag", not g.hot_flag_active(SF))
+
+# trailing off (peak below arm) -> not armed
+out, mc, stt = run({"trail_arm": 2000, "state_file": SF},
+                   state={"date": "2026-09-21", "alerts": {}, "locked": [],
+                          "peaks": {"NIFTY|2026-09-22": 500}})
+check("open position flags fast polling (no trail needed)",
+      g.hot_flag_active(SF))
+
+# stale flag (guard died while armed) -> ignored
+p = g.hot_flag_path(SF)
+with open(p, "w") as f:
+    json.dump({"armed": True, "keys": ["NIFTY|2026-09-22"],
+               "updated": "2020-01-01T09:00:00+05:30"}, f)
+check("stale hot flag is ignored", not g.hot_flag_active(SF))
+
+# fresh flag -> active
+with open(p, "w") as f:
+    json.dump({"armed": True, "keys": ["NIFTY|2026-09-22"],
+               "updated": g.datetime.now(g.IST).isoformat()}, f)
+check("fresh hot flag is active", g.hot_flag_active(SF))
+
+# missing flag -> not active (fast mode must make no API call)
+g.write_hot_flag(SF, [])
+os.remove(p)
+check("missing flag -> inactive", not g.hot_flag_active(SF))
+
+# ---------- 13. resting stop-loss orders (SL-L) ----------
+POS2 = [
+    {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23300 CE",
+     "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+     "productType": "MARGIN", "netQty": -260, "costPrice": 100.0,
+     "lastPrice": 80.0, "securityId": "22201"},
+    {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23700 CE",
+     "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+     "productType": "MARGIN", "netQty": 260, "costPrice": 30.0,
+     "lastPrice": 25.0, "securityId": "22202"},
+]
+st2 = g.group_structures(POS2, 65)["NIFTY|2026-09-22"]
+# short leg -260, cost 100, last 80; other leg 260*(25-30) = -1300
+# solve -260*(X-100) - 1300 = -7200  ->  X = 122.69
+trig = g.stop_trigger_price(st2, st2["legs"][0], 7200)
+check("stop trigger solves for the loss limit", abs(trig - 122.69) < 0.05)
+check("long leg gets no stop",
+      g.stop_trigger_price(st2, st2["legs"][1], 7200) is None)
+sb = g.sl_order_body("1000191656", st2["legs"][0], trig, 2.0)
+check("SL body: BUY STOP_LOSS with trigger + buffered limit",
+      sb["transactionType"] == "BUY" and sb["orderType"] == "STOP_LOSS"
+      and abs(sb["triggerPrice"] - 122.69) < 0.05
+      and abs(sb["price"] - 125.14) < 0.05
+      and sb["quantity"] == 260 and sb["productType"] == "MARGIN")
+
+class MockSL(MockClient):
+    def __init__(self, flat=False):
+        super().__init__(); self.cancels = []; self.flat = flat
+    def get_positions(self): return [] if self.flat else POS2
+    def cancel_order(self, oid):
+        self.cancels.append(oid)
+        return {"orderId": oid, "orderStatus": "CANCELLED"}
+
+mc = MockSL()
+out, mc, stt = run({"sl_order": True, "state_file": SF}, client=mc)
+check("resting stop placed on the short leg only",
+      len(mc.orders) == 1 and mc.orders[0]["orderType"] == "STOP_LOSS"
+      and mc.orders[0]["securityId"] == "22201")
+check("SL order recorded in state",
+      "22201" in stt.get("sl_orders", {}).get("NIFTY|2026-09-22", {}))
+
+out2, mc, stt = run({"sl_order": True, "state_file": SF}, client=mc, state=stt)
+check("stop is not re-placed on the next cycle", len(mc.orders) == 1)
+
+mcflat = MockSL(flat=True)
+out3, mcflat, stt = run({"sl_order": True, "state_file": SF},
+                        client=mcflat, state=stt)
+check("resting stops cancelled when the book goes flat",
+      len(mcflat.cancels) == 1
+      and "NIFTY|2026-09-22" not in stt.get("sl_orders", {}))
+
+# pending-exit skip must ignore our resting stops but keep counting markets
+mb = MockClient()
+mb.order_book = [{"securityId": "22201", "transactionType": "BUY",
+                  "orderStatus": "PENDING", "orderType": "STOP_LOSS"}]
+check("pending-exit skip ignores resting stops",
+      ("22201", "BUY") not in g._pending_exit_orders(mb))
+mb2 = MockClient()
+mb2.order_book = [{"securityId": "22201", "transactionType": "BUY",
+                   "orderStatus": "PENDING", "orderType": "MARKET"}]
+check("pending-exit skip still counts market exits",
+      ("22201", "BUY") in g._pending_exit_orders(mb2))
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
