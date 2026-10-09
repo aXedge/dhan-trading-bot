@@ -4,6 +4,10 @@ trail_audit.py — daily audit of guard trail exits: was the exit helpful?
 
 WHAT THIS ANSWERS
 ----------------
+Audits EVERY exit — guard flattens (trail/loss/profit) AND structures the
+algo closed on its own (typed ALGO/EXPIRY when a structure simply vanishes
+from the guard log without a FLATTENING line).
+
 Every time the F&O structure guard flattens a position (trail breach, loss
 breach or profit target), the obvious next-day question is: did that exit
 save us from a loss, or did it cut a winner short?  This script answers it
@@ -92,6 +96,9 @@ RE_MTM = re.compile(
 RE_PEAK = re.compile(r"peak Rs\.(-?[\d,]+(?:\.\d+)?)")
 RE_FLATTEN = re.compile(r"(\w+) THRESHOLD BREACH.{0,6}FLATTENING\s+(.+?)\s+\*{3}")
 RE_EXIT = re.compile(r"\[EXIT\]\s+(\S+):\s+(BUY|SELL)\s+(\d+)\s+MKT")
+RE_NOOPEN = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\] No open F&O")
+RE_STRUCT = re.compile(r"\[STRUCT\]\s+(.+?)\s+\|\s*(.+)$")
+RE_SYM_POS = re.compile(r"^(\S+)\s+(\d+)\s+([CP])E$")   # NIFTY 23300 CE
 RE_SYM = re.compile(
     r"^(.+?)-([A-Za-z]{3})(\d{4})-(\d+)-([CP])[EP]$")  # NIFTY-Sep2026-23250-CE
 
@@ -108,6 +115,8 @@ def parse_log(text):
 
     cur_date = None
     cur_exit = None  # (date, key) of last FLATTENING line
+    no_open = {}     # date -> last HH:MM:SS with "No open F&O positions"
+    struct_legs = {} # key -> [(symbol, signed_qty), ...] from [STRUCT] lines
     for line in text.splitlines():
         m = RE_STARTED.search(line)
         if m:
@@ -132,37 +141,113 @@ def parse_log(text):
             ep(cur_date, key).setdefault("exit_types", []).append(exit_type)
             cur_exit = (cur_date, key)
             continue
+        m = RE_NOOPEN.match(line)
+        if m:
+            no_open[cur_date] = m.group(1)
+            continue
+        m = RE_STRUCT.search(line)
+        if m:
+            key = m.group(1).strip()
+            legs = []
+            for seg in m.group(2).split("|"):
+                parts = seg.strip().rsplit(" q=", 1)
+                if len(parts) == 2:
+                    try:
+                        legs.append((parts[0].strip(), int(parts[1])))
+                    except ValueError:
+                        pass
+            if legs:
+                struct_legs[key] = legs
+            continue
         m = RE_EXIT.search(line)
         if m and cur_exit:
             episodes[cur_exit]["exit_orders"].append(m.groups())
             continue
-    return [e for e in episodes.values() if e["exits"]]
+    out = []
+    for e in episodes.values():
+        if not e["samples"]:
+            continue
+        e["no_open_after"] = no_open.get(e["date"])
+        e["struct_legs"] = struct_legs.get(e["key"], [])
+        out.append(e)
+    return out
+
+
+def exit_of(episode):
+    """
+    (exit_time, exit_type) for an episode.
+      * guard exits  -> the FLATTENING time and its type (TRAIL/LOSS/PROFIT)
+      * vanished     -> the last sample, typed ALGO (algo closed it) or EXPIRY
+                        (needs the guard's [STRUCT] line for strikes)
+                        (disappeared at its own expiry moment)
+    Returns (None, None) when the structure is still open at the end of the
+    log — there was no exit, so there is nothing to audit.
+    """
+    if episode.get("exits"):
+        return episode["exits"][0], (episode.get("exit_types") or ["GUARD"])[0]
+    last_t = episode["samples"][-1][0]
+    nt = episode.get("no_open_after")
+    if not nt or last_t >= nt:
+        return None, None            # still open — not an exit
+    m = re.search(r"\|(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})", episode["key"])
+    if m:
+        exp = pd.Timestamp(f"{m.group(1)} {m.group(2)}", tz=KOL)
+        got = pd.Timestamp(f"{episode['date']} {last_t}", tz=KOL)
+        if abs((exp - got).total_seconds()) <= 1800:
+            return last_t, "EXPIRY"
+    return last_t, "ALGO"
+
+
+def _parse_symbol(sym):
+    """(underlying, strike, is_call) from any symbol style, else None.
+    Handles the broker order format (NIFTY-Sep2026-23250-CE) and the
+    positions format (NIFTY 23300 CE / NIFTY 13 OCT 22100 PUT)."""
+    m = RE_SYM.match(sym)                      # NIFTY-Sep2026-23250-CE
+    if m:
+        under, _mon, _yr, strike, cp = m.groups()
+        return under, float(strike), cp == "C"
+    s = str(sym).upper()
+    mt = re.search(r"(CE|PE|CALL|PUT)\s*$", s)
+    if not mt:
+        return None
+    nums = re.findall(r"\d+", s)
+    if not nums or not s.split():
+        return None
+    return s.split()[0].split("-")[0], float(nums[-1]), mt.group(1) in (
+        "CE", "CALL")
 
 
 def episode_legs(episode):
-    """(expiry_ts, qty, [(strike, is_call, direction)], underlying) or None."""
+    """(expiry_ts, qty, [(strike, is_call, direction)], underlying) or None.
+    Legs come from the guard's [EXIT] order lines when it exited; otherwise
+    from the [STRUCT] snapshot the guard logs for every structure it sees."""
     first_side = {}
     for sym, side, qty in episode["exit_orders"]:
-        m = RE_SYM.match(sym)
-        if not m:
+        parsed = _parse_symbol(sym)
+        if not parsed:
             return None
+        under, strike, is_call = parsed
         if sym not in first_side:
-            first_side[sym] = (m.groups(), side, qty)
+            first_side[sym] = (under, strike, is_call,
+                               1 if side == "SELL" else -1, abs(int(qty)))
+    if not first_side:
+        for sym, q in episode.get("struct_legs", []):
+            parsed = _parse_symbol(sym)
+            if not parsed or q == 0:
+                continue
+            under, strike, is_call = parsed
+            first_side[sym] = (under, strike, is_call,
+                               1 if q > 0 else -1, abs(int(q)))
     if not first_side:
         return None
     expiry = None
     legs = []
     qty_common = None
     underlying = None
-    for (under, mon, yr, strike, cp), side, qty in first_side.values():
+    for under, strike, is_call, direction, qty in first_side.values():
         underlying = under
-        qty = int(qty)
         qty_common = qty if qty_common is None else qty_common
-        direction = 1 if side == "SELL" else -1  # SELL to exit = was long
-        legs.append((float(strike), cp == "C", direction))
-        mon_n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
-                 "Sep", "Oct", "Nov", "Dec"].index(mon) + 1
-        expiry = pd.Timestamp(f"{int(yr)}-{mon_n:02d}-01", tz=KOL)
+        legs.append((strike, is_call, direction))
     # expiry day: take from the structure key (format ...|YYYY-MM-DD HH:MM)
     m = re.search(r"\|(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})", episode["key"])
     if m:
@@ -211,10 +296,13 @@ def fit_linear(samples_x, mtms):
     if len(samples_x) < 4:
         return None
     b, a = np.polyfit(np.array(samples_x), np.array(mtms), 1)
+    y = np.array(mtms)
     yhat = a + b * np.array(samples_x)
-    ss = ((np.array(mtms) - yhat) ** 2).sum()
-    rmse = math.sqrt(ss / len(mtms))
-    return {"a": float(a), "b": float(b), "rmse": rmse}
+    ss = ((y - yhat) ** 2).sum()
+    rmse = math.sqrt(ss / len(y))
+    var = ((y - y.mean()) ** 2).sum()
+    r2 = float(1 - ss / var) if var > 0 else 0.0
+    return {"a": float(a), "b": float(b), "rmse": rmse, "r2": r2}
 
 
 def _ncdf(x):
@@ -258,9 +346,13 @@ def fit_bs(samples_ts, Ss, mtms, expiry, qty, legs):
 # ---------------------------------------------------------------------------
 # Step 3/4 — project, classify
 # ---------------------------------------------------------------------------
-def analyse_episode(episode, closes, min_samples):
+def analyse_episode(episode, closes, min_samples, exit_t=None,
+                    exit_type=None):
     date = episode["date"]
-    exit_t = episode["exits"][0]
+    if exit_t is None:
+        exit_t = episode["exits"][0]
+    if exit_type is None:
+        exit_type = (episode.get("exit_types") or ["GUARD"])[0]
     samples = [(t, m, p) for t, m, p in episode["samples"] if t <= exit_t]
     if len(samples) < min_samples:
         return {"verdict": "INSUFFICIENT-SAMPLES", "n": len(samples)}
@@ -313,6 +405,25 @@ def analyse_episode(episode, closes, min_samples):
     best = max((s[2] for s in (lin_stats, bs_stats) if s), default=None)
     method = "bs" if bs_stats and lin_stats else ("bs" if bs_stats else "lin")
 
+    # --- sanity gate: refuse a verdict the data cannot support ---------
+    # A short, quiet window cannot constrain the model. Seen on 2026-10-08:
+    # a long-put structure fitted a +56/pt delta (wrong sign) and a 1%
+    # implied vol, inverting the projection. Rather than record a confident-
+    # looking wrong answer, mark the episode UNRELIABLE-FIT so it stays
+    # visible but is never treated as evidence.
+    def _unreliable(why):
+        return {"verdict": "UNRELIABLE-FIT", "why": why, "n": len(xs),
+                "exit_type": exit_type, "exit_time": exit_t,
+                "exit_mtm": exit_mtm, "peak": peak, "confidence": "LOW",
+                "delta": lin["b"] if lin else None,
+                "sigma": bs["sigma"] if bs else None}
+
+    if bs is not None:
+        if not (0.05 <= bs["sigma"] <= 0.80):
+            return _unreliable(f"implied vol {bs['sigma']:.0%} implausible")
+    elif lin is None or lin.get("r2", 0) < 0.30:
+        return _unreliable("linear fit too weak (no legs to price)")
+
     conflict = (lin_stats and bs_stats
                 and (lin_stats[2] - exit_mtm) * (bs_stats[2] - exit_mtm) < 0)
     tol = 500.0
@@ -329,8 +440,9 @@ def analyse_episode(episode, closes, min_samples):
     low_n = len(xs) < 5
 
     return {"verdict": verdict, "verdict_plain": verdict_plain,
-            "exit_type": (episode.get("exit_types") or ["?"])[0],
-            "confidence": "LOW" if (conflict or low_n) else "OK",
+            "exit_type": exit_type,
+            "confidence": ("LOW" if (conflict or low_n or not bs)
+                           else "OK"),
             "exit_mtm": exit_mtm, "peak": peak, "n": len(xs),
             "hold_worst": worst, "hold_best": best, "hold_close": final,
             "delta": lin["b"] if lin else None,
@@ -380,6 +492,9 @@ def main():
     ap.add_argument("--min-samples", type=int, default=3,
                     help="min MTM samples before the exit to fit a "
                          "model (default 3; <5 is flagged LOW)")
+    ap.add_argument("--guard-only", action="store_true",
+                    help="audit only guard exits; skip structures the algo "
+                         "closed itself (default: audit both)")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
 
@@ -395,7 +510,7 @@ def main():
     if args.date:
         episodes = [e for e in episodes if e["date"] == args.date]
     if not episodes:
-        print("[OK] no guard exits in log — nothing to audit.")
+        print("[OK] no structures in log — nothing to audit.")
         return 0
 
     # dedup against CSV
@@ -407,9 +522,16 @@ def main():
 
     bar_cache = {}
     results = []
-    for e in sorted(episodes, key=lambda x: (x["date"], x["exits"][0])):
-        if (e["date"], e["key"], e["exits"][0]) in done:
-            print(f"[SKIP] {e['date']} {e['key']} @ {e['exits'][0]} "
+    for e in sorted(episodes, key=lambda x: (x["date"],
+                                             exit_of(x)[0] or "99:99")):
+        exit_t, exit_type = exit_of(e)
+        if exit_t is None:
+            print(f"[SKIP] {e['date']} {e['key']} — still open at log end")
+            continue
+        if args.guard_only and not e.get("exits"):
+            continue
+        if (e["date"], e["key"], exit_t) in done:
+            print(f"[SKIP] {e['date']} {e['key']} @ {exit_t} "
                   f"(already in CSV)")
             continue
         under = "NIFTY"
@@ -430,14 +552,17 @@ def main():
             print(f"[WARN] no bars for {ticker} {e['date']} — skipping "
                   f"{e['key']}")
             continue
-        r = analyse_episode(e, closes, args.min_samples)
+        r = analyse_episode(e, closes, args.min_samples, exit_t, exit_type)
         r.update({"date": e["date"], "key": e["key"]})
         results.append(r)
 
         print(f"\n=== {e['date']}  {e['key']}  (exit {r.get('exit_time')}) ===")
         if r["verdict"] in ("INSUFFICIENT-SAMPLES", "NO-BAR-OVERLAP",
-                            "NO-AFTER-BARS"):
-            print(f"  verdict: {r['verdict']} (samples {r.get('n')})")
+                            "NO-AFTER-BARS", "UNRELIABLE-FIT"):
+            why = f" — {r['why']}" if r.get("why") else ""
+            print(f"  verdict: {r['verdict']} (samples {r.get('n')}){why}")
+            print("  (not enough signal to judge this exit — left out of "
+                  "the evidence)")
             continue
         print(f"  exit locked  : {fmt(r['exit_mtm'])}   "
               f"(day peak {fmt(r['peak'])}, "
@@ -556,8 +681,50 @@ def run_selftest():
     assert r2["verdict_plain"] == "HELPED", r2
     assert r2["hold_close"] < r2["exit_mtm"], r2
 
-    print("[SELFTEST] parse, legs, calibration, projection, verdicts: "
-          "ALL PASS")
+    # ---- vanished structures (algo-side exits) ----
+    log2 = "\n".join([
+        "  Started at  : 2026-10-08 10:50:01 IST",
+        "[10:50:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.-1404 | peak Rs.-585 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[10:55:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.-1573 | peak Rs.-585 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[11:00:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.-2574 | peak Rs.-585 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[11:05:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.-2086 | peak Rs.-585 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[11:25:32] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.-6149 | peak Rs.-585 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> WARN75",
+        "[11:26:01] No open F&O positions.",
+    ])
+    eps2 = parse_log(log2)
+    assert len(eps2) == 1, eps2
+    et, etype = exit_of(eps2[0])
+    assert et == "11:25:32" and etype == "ALGO", (et, etype)
+
+    # still open at the end of the log -> not an exit, not audited
+    log3 = log2.replace("[11:26:01] No open F&O positions.", "").rstrip("\n")
+    et3, etype3 = exit_of(parse_log(log3)[0])
+    assert et3 is None and etype3 is None, (et3, etype3)
+
+    # disappearing at its own expiry moment -> EXPIRY, not ALGO
+    log4 = "\n".join([
+        "  Started at  : 2026-10-13 14:20:01 IST",
+        "[14:25:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.600 | peak Rs.600 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[14:30:01] NIFTY-OCT|2026-10-13 14:30:00: 2 lot(s) | MTM Rs.650 | peak Rs.650 | loss-limit Rs.7,200 (profit-limit Rs.9,000) -> ok",
+        "[14:35:01] No open F&O positions.",
+    ])
+    assert exit_of(parse_log(log4)[0])[1] == "EXPIRY"
+
+    # a vanished episode gets audited (linear-only, no legs to price)
+    bars2 = pd.Series(
+        [22838, 22838, 22825, 22818, 22800, 22854, 22810, 22780],
+        index=pd.DatetimeIndex([
+            pd.Timestamp(f"2026-10-08 {t}", tz=KOL) for t in
+            ["10:50", "11:00", "11:05", "11:25", "11:40", "12:25",
+             "14:00", "15:25"]]))
+    r3 = analyse_episode(eps2[0], bars2, 3, "11:25:32", "ALGO")
+    assert r3.get("exit_type") == "ALGO", r3
+    assert r3.get("verdict") in ("SAVED-FROM-LOSS", "LIMITED-PROFIT",
+                                 "NEUTRAL"), r3
+    assert r3.get("method") == "lin", r3
+
+    print("[SELFTEST] parse, legs, calibration, projection, verdicts, "
+          "vanished-structure audit: ALL PASS")
     return 0
 
 

@@ -644,8 +644,23 @@ def check_once(client, args, state):
     total_lots = sum(g["lots"] for g in structures.values())
     for key, g in sorted(structures.items()):
         if g["lots"] <= 0:
-            print(f"[{ts}] {key}: open legs but lot count 0 (qty < lot size?) "
-                  f"— watching MTM anyway")
+            print(f"[{ts}] {key}: open legs but lot count 0 (qty < lot "
+                  f"size?) — watching MTM anyway")
+
+        # --- machine-readable leg snapshot: printed once per structure per
+        # day (or whenever the leg set changes). It gives the audit the
+        # strikes/quantities it needs to price a structure the ALGO closes
+        # itself, where there are no [EXIT] order lines to read legs from.
+        sig = "|".join(f"{l.get('tradingSymbol', '?')}q{int(l.get('netQty', 0) or 0)}"
+                       for l in sorted(g["legs"],
+                                       key=lambda x: str(x.get("securityId"))))
+        seen = state.setdefault("struct_seen", {})
+        if seen.get(key) != sig:
+            seen[key] = sig
+            print(f"[{ts}] [STRUCT] {key} | " + " | ".join(
+                f"{l.get('tradingSymbol', '?')} q={int(l.get('netQty', 0) or 0)}"
+                for l in sorted(g["legs"],
+                                key=lambda x: str(x.get("securityId")))))
 
         profit_limit = args.per_lot_profit * max(g["lots"], 1)
         loss_limit = args.per_lot_loss * max(g["lots"], 1)
