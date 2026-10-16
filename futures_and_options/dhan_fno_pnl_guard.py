@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v12"
-GUARD_BUILD = "2026-10-16"
-GUARD_NOTES = "book-profit floor + EOD exit; status labels fixed"
+GUARD_VERSION = "v13"
+GUARD_BUILD = "2026-10-17"
+GUARD_NOTES = "fix: struct_seen now persists, so [STRUCT] prints once per day"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -320,7 +320,10 @@ def market_open(now=None):
 # ---------------------------------------------------------------------------
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
-DAILY_KEYS = ("alerts", "locked")     # reset at the start of each day
+DAILY_KEYS = ("alerts", "locked", "struct_seen")  # reset at start of day;
+                                                  # struct_seen MUST persist
+                                                  # within the day or [STRUCT]
+                                                  # reprints every cycle
 PERSIST_KEYS = ("peaks",)             # survive days (trailing memory)
 
 
@@ -380,7 +383,8 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 
 
 def load_state(path, today):
-    state = {"date": today, "alerts": {}, "locked": [], "peaks": {}}
+    state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
+             "struct_seen": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:

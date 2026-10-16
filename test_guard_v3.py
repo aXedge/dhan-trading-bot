@@ -183,7 +183,7 @@ check("backstop: DELIVERY never used", all(
 fresh = g.load_state("/nonexistent/x.json", "2026-09-22")
 check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "alerts": {}, "locked": [],
-                                                 "peaks": {}})
+                                                 "peaks": {}, "struct_seen": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -422,13 +422,13 @@ def _client_mtm(mtm, lots=4):
 st = {"date": "2026-09-21", "alerts": {}, "locked": [], "peaks": {}}
 out, _, st = run({"profit_floor": 2000, "enforce": True},
                  client=_client_mtm(9000), state=st)
-check("book: no exit while above the mark", "BOOK-PROFIT" not in out)
+check("book: no exit while above the mark", "BOOK-PROFIT THRESHOLD" not in out)
 out, _, st = run({"profit_floor": 2000, "enforce": True},
                  client=_client_mtm(7500), state=st)
-check("book: exits when it falls back to the mark", "BOOK-PROFIT" in out)
+check("book: exits when it falls back to the mark", "BOOK-PROFIT THRESHOLD" in out)
 out, _, _ = run({"profit_floor": 2000, "enforce": True},
                 client=_client_mtm(30000))
-check("book: does NOT cap a big winner", "BOOK-PROFIT" not in out)
+check("book: does NOT cap a big winner", "BOOK-PROFIT THRESHOLD" not in out)
 
 # ---------- NEW: EOD profit exit ----------
 out, _, _ = run({"eod_exit": "00:00", "enforce": True},
@@ -440,6 +440,14 @@ check("eod: leaves a losing position alone", "EOD-PROFIT" not in out)
 out, _, _ = run({"eod_exit": "23:59", "enforce": True},
                 client=_client_mtm(6000))
 check("eod: silent before the cutoff", "EOD-PROFIT" not in out)
+
+# ---------- NEW: struct_seen must survive save/load ----------
+_st = {"date": "2026-09-21", "alerts": {}, "locked": [], "peaks": {},
+       "struct_seen": {"NIFTY|2026-09-22": "sig"}}
+g.save_state(SF, _st)
+_rl = g.load_state(SF, "2026-09-21")
+check("struct_seen survives save/load (so [STRUCT] prints once/day)",
+      _rl.get("struct_seen") == {"NIFTY|2026-09-22": "sig"})
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
