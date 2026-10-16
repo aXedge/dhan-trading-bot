@@ -1,74 +1,41 @@
 {
-  "date": "2026-10-02",
-  "scan_time": "2026-10-02T15:00:24.752779",
+  "date": "2026-10-16",
+  "scan_time": "2026-10-16T15:00:24.653732",
   "basket_size": 30,
-  "signals_count": 6,
+  "signals_count": 3,
   "signals": [
     {
-      "strategy": "reversal",
-      "symbol": "RADICO",
-      "entry_price": 4237.0,
-      "stop_loss": 4025.15,
-      "target": 4575.96,
-      "stop_loss_pct": 5.0,
-      "target_pct": 8.0,
-      "rsi": 38.7,
-      "date": "2026-10-02"
-    },
-    {
       "strategy": "pullback",
-      "symbol": "LAURUSLABS",
-      "entry_price": 1984.0,
-      "stop_loss": 1845.12,
-      "target": 2281.6,
+      "symbol": "NYKAA",
+      "entry_price": 344.3,
+      "stop_loss": 320.2,
+      "target": 395.94,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
-      "rsi": 58.4,
-      "date": "2026-10-02"
-    },
-    {
-      "strategy": "reversal",
-      "symbol": "ETERNAL",
-      "entry_price": 313.9,
-      "stop_loss": 298.2,
-      "target": 339.01,
-      "stop_loss_pct": 5.0,
-      "target_pct": 8.0,
-      "rsi": 39.2,
-      "date": "2026-10-02"
+      "rsi": 56.9,
+      "date": "2026-10-16"
     },
     {
       "strategy": "pullback",
-      "symbol": "AUROPHARMA",
-      "entry_price": 1676.8,
-      "stop_loss": 1559.42,
-      "target": 1928.32,
+      "symbol": "RADICO",
+      "entry_price": 4468.3,
+      "stop_loss": 4155.52,
+      "target": 5138.54,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
       "rsi": 50.1,
-      "date": "2026-10-02"
+      "date": "2026-10-16"
     },
     {
       "strategy": "pullback",
-      "symbol": "MCX",
-      "entry_price": 3204.0,
-      "stop_loss": 2979.72,
-      "target": 3684.6,
+      "symbol": "BHEL",
+      "entry_price": 434.1,
+      "stop_loss": 403.71,
+      "target": 499.22,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
-      "rsi": 48.2,
-      "date": "2026-10-02"
-    },
-    {
-      "strategy": "pullback",
-      "symbol": "KOTAKBANK",
-      "entry_price": 418.35,
-      "stop_loss": 389.07,
-      "target": 481.1,
-      "stop_loss_pct": 7.0,
-      "target_pct": 15.0,
-      "rsi": 57.6,
-      "date": "2026-10-02"
+      "rsi": 51.1,
+      "date": "2026-10-16"
     }
   ]
 }
