@@ -697,6 +697,16 @@ def check_once(client, args, state):
         if trail_on:
             floor = max(floor, args.trail_lock * peak)
 
+        # --- book-profit floor: let the position run ABOVE the mark, but
+        # never give it back below it. Independent of the trail, and usually
+        # tighter: it floors at the mark itself, not a fraction of the peak.
+        book_floor = None
+        _pf = getattr(args, "profit_floor", 0) or 0
+        if _pf > 0:
+            mark = _pf * max(g["lots"], 1)
+            if peak >= mark:
+                book_floor = mark
+
         # --- resting broker-side stop on the short leg(s) (optional) ---
         if args.sl_order:
             _ensure_sl_orders(client, args, state, key, g, loss_limit, ts)
@@ -754,9 +764,18 @@ def check_once(client, args, state):
                         "switch activated. Manual re-arm required.")
 
         # --- threshold breach (base loss floor, trailing floor, profit) ---
+        _eod = getattr(args, "eod_exit", "") or ""
+        eod_hit = bool(_eod) and datetime.now(IST).strftime("%H:%M") >= _eod
         if breach:
             _handle_breach(client, args, state, key, g, mtm,
                            floor, ts, is_loss=True)
+        elif book_floor is not None and mtm <= book_floor:
+            _handle_breach(client, args, state, key, g, mtm,
+                           book_floor, ts, is_loss=False,
+                           label="BOOK-PROFIT")
+        elif eod_hit and mtm > 0:
+            _handle_breach(client, args, state, key, g, mtm,
+                           mtm, ts, is_loss=False, label="EOD-PROFIT")
         elif profit_limit and mtm >= profit_limit:
             _handle_breach(client, args, state, key, g, mtm,
                            profit_limit, ts, is_loss=False)
@@ -785,11 +804,13 @@ def check_once(client, args, state):
     return True
 
 
-def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss):
-    if is_loss and limit > 0:
-        label = "TRAIL"      # profit-locking exit at the trailing floor
-    else:
-        label = "LOSS" if is_loss else "PROFIT"
+def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss,
+                   label=None):
+    if label is None:
+        if is_loss and limit > 0:
+            label = "TRAIL"  # profit-locking exit at the trailing floor
+        else:
+            label = "LOSS" if is_loss else "PROFIT"
     if not args.enforce:
         sent = state["alerts"].setdefault(key, [])
         if "breach" not in sent:
@@ -882,6 +903,16 @@ def main():
                         help="Once armed, the loss floor rises to this "
                              "fraction of the structure's best peak MTM "
                              "(default 0.5 = lock half the peak).")
+    parser.add_argument("--profit-floor", type=float, default=0,
+                        help="Per-lot book-profit mark. Once a structure's "
+                             "peak MTM reaches it, the guard exits if MTM "
+                             "falls back to it — but never caps the upside "
+                             "above it. 0 disables (default).")
+    parser.add_argument("--eod-exit", default="",
+                        help="HH:MM IST. If a structure is still OPEN and in "
+                             "profit at/after this time, close it, so no "
+                             "winning position is carried overnight. "
+                             "Empty disables (default).")
     parser.add_argument("--kill-on-reentry", action="store_true",
                         help="On re-entry into a locked structure: flatten "
                              "it and activate the kill switch.")
@@ -959,6 +990,12 @@ def main():
               f"lock {args.trail_lock * 100:.0f}% of peak")
     else:
         print("  Trailing    : off")
+    if args.profit_floor > 0:
+        print(f"  Book-profit : floor Rs.{args.profit_floor:,.0f}/lot "
+              f"(runs above it, never gives back below it)")
+    if args.eod_exit:
+        print(f"  EOD exit    : profitable positions closed at/after "
+              f"{args.eod_exit} IST")
     if args.sl_order:
         print(f"  Resting stop: SL-L on short legs, buffer "
               f"{args.sl_buffer_pct:.1f}%")

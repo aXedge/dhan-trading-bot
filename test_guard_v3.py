@@ -108,6 +108,7 @@ def run(args_overrides, client=None, state=None):
         profit=0, loss=0, enforce=False, dry_run=False,
         kill_on_reentry=False, backstop=True,
         trail_arm=0, trail_lock=0.5,   # trailing OFF in harness default
+        profit_floor=0, eod_exit="",   # new book-profit knobs OFF
         sl_order=False, sl_buffer_pct=2.0,
         fast_interval=30, fast_window=55,
         state_file=SF)
@@ -399,6 +400,46 @@ mb2.order_book = [{"securityId": "22201", "transactionType": "BUY",
                    "orderStatus": "PENDING", "orderType": "MARKET"}]
 check("pending-exit skip still counts market exits",
       ("22201", "BUY") in g._pending_exit_orders(mb2))
+
+# ---------- NEW: book-profit floor ----------
+def _client_mtm(mtm, lots=4):
+    legs = [
+        {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23300 CE",
+         "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+         "productType": "MARGIN", "netQty": -65 * lots, "costPrice": 166.3,
+         "securityId": "11101", "unrealizedProfit": mtm * 0.7},
+        {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23700 CE",
+         "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+         "productType": "MARGIN", "netQty": 65 * lots, "costPrice": 44.9,
+         "securityId": "11102", "unrealizedProfit": mtm * 0.3},
+    ]
+
+    class C(MockClient):
+        def get_positions(self):
+            return [] if self.filled else legs
+    return C()
+
+st = {"date": "2026-09-21", "alerts": {}, "locked": [], "peaks": {}}
+out, _, st = run({"profit_floor": 2000, "enforce": True},
+                 client=_client_mtm(9000), state=st)
+check("book: no exit while above the mark", "BOOK-PROFIT" not in out)
+out, _, st = run({"profit_floor": 2000, "enforce": True},
+                 client=_client_mtm(7500), state=st)
+check("book: exits when it falls back to the mark", "BOOK-PROFIT" in out)
+out, _, _ = run({"profit_floor": 2000, "enforce": True},
+                client=_client_mtm(30000))
+check("book: does NOT cap a big winner", "BOOK-PROFIT" not in out)
+
+# ---------- NEW: EOD profit exit ----------
+out, _, _ = run({"eod_exit": "00:00", "enforce": True},
+                client=_client_mtm(6000))
+check("eod: exits an open position in profit", "EOD-PROFIT" in out)
+out, _, _ = run({"eod_exit": "00:00", "enforce": True},
+                client=_client_mtm(-5000))
+check("eod: leaves a losing position alone", "EOD-PROFIT" not in out)
+out, _, _ = run({"eod_exit": "23:59", "enforce": True},
+                client=_client_mtm(6000))
+check("eod: silent before the cutoff", "EOD-PROFIT" not in out)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
