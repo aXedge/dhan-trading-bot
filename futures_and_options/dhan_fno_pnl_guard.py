@@ -115,6 +115,12 @@ DEFAULT_PER_LOT_PROFIT = 4500
 DEFAULT_PER_LOT_LOSS = 3600
 DEFAULT_LOT_SIZE = 65  # NIFTY
 
+# --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
+# banner, --version, and verify_deploy.sh can all say which build is live.
+GUARD_VERSION = "v12"
+GUARD_BUILD = "2026-10-16"
+GUARD_NOTES = "book-profit floor + EOD exit; status labels fixed"
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
 # Position payload keys, defensively tried (Dhan v2 field spellings)
@@ -692,35 +698,38 @@ def check_once(client, args, state):
             peak = mtm
         peaks[key] = peak
 
+        # --- floors, highest-armed wins. Three candidates: the hard loss
+        # limit, the trailing floor, and the book-profit mark. Whichever is
+        # highest and armed governs the exit, and carries its own label so
+        # the log and the audit can tell them apart.
         floor = -loss_limit
+        floor_label = "LOSS"
         trail_on = (args.trail_arm > 0 and peak >= args.trail_arm)
-        if trail_on:
-            floor = max(floor, args.trail_lock * peak)
-
-        # --- book-profit floor: let the position run ABOVE the mark, but
-        # never give it back below it. Independent of the trail, and usually
-        # tighter: it floors at the mark itself, not a fraction of the peak.
-        book_floor = None
+        if trail_on and args.trail_lock * peak > floor:
+            floor, floor_label = args.trail_lock * peak, "TRAIL"
         _pf = getattr(args, "profit_floor", 0) or 0
-        if _pf > 0:
+        if _pf > 0 and peak >= _pf * max(g["lots"], 1):
             mark = _pf * max(g["lots"], 1)
-            if peak >= mark:
-                book_floor = mark
+            if mark > floor:
+                floor, floor_label = mark, "BOOK-PROFIT"
 
         # --- resting broker-side stop on the short leg(s) (optional) ---
         if args.sl_order:
             _ensure_sl_orders(client, args, state, key, g, loss_limit, ts)
 
         ratio = (abs(mtm) / loss_limit) if mtm < 0 and loss_limit else 0.0
+        _eod = getattr(args, "eod_exit", "") or ""
+        eod_hit = bool(_eod) and datetime.now(IST).strftime("%H:%M") >= _eod
         breach = mtm <= floor
-        status = ("TRAIL-BREACH" if breach and floor > -loss_limit else
-                  "BREACH" if breach else
+        status = (f"{floor_label}-BREACH" if breach else
+                  "EOD-EXIT" if (eod_hit and mtm > 0) else
                   "WARN75" if ratio >= 0.75 else
                   "WARN50" if ratio >= 0.50 else
                   "PROFIT-BREACH" if profit_limit and mtm >= profit_limit
                   else "TRAIL-ARMED" if trail_on else "ok")
 
-        floor_str = (f"floor Rs.{floor:,.0f}" if trail_on
+        floor_str = (f"{floor_label} floor Rs.{floor:,.0f}"
+                     if floor > -loss_limit
                      else f"loss-limit Rs.{-floor:,.0f}")
         print(f"[{ts}] {key}: {g['lots']} lot(s) | MTM Rs.{mtm:,.0f} | "
               f"peak Rs.{peak:,.0f} | {floor_str} "
@@ -764,18 +773,13 @@ def check_once(client, args, state):
                         "switch activated. Manual re-arm required.")
 
         # --- threshold breach (base loss floor, trailing floor, profit) ---
-        _eod = getattr(args, "eod_exit", "") or ""
-        eod_hit = bool(_eod) and datetime.now(IST).strftime("%H:%M") >= _eod
         if breach:
-            _handle_breach(client, args, state, key, g, mtm,
-                           floor, ts, is_loss=True)
-        elif book_floor is not None and mtm <= book_floor:
-            _handle_breach(client, args, state, key, g, mtm,
-                           book_floor, ts, is_loss=False,
-                           label="BOOK-PROFIT")
+            _handle_breach(client, args, state, key, g, mtm, floor, ts,
+                           is_loss=(floor_label == "LOSS"),
+                           label=floor_label)
         elif eod_hit and mtm > 0:
-            _handle_breach(client, args, state, key, g, mtm,
-                           mtm, ts, is_loss=False, label="EOD-PROFIT")
+            _handle_breach(client, args, state, key, g, mtm, mtm, ts,
+                           is_loss=False, label="EOD-PROFIT")
         elif profit_limit and mtm >= profit_limit:
             _handle_breach(client, args, state, key, g, mtm,
                            profit_limit, ts, is_loss=False)
@@ -884,6 +888,9 @@ def main():
                       help="Monitor + alert only (default; no orders ever).")
     mode.add_argument("--enforce", action="store_true",
                       help="Place real exit orders on threshold breach.")
+    parser.add_argument("--version", action="version",
+                        version=f"dhan_fno_pnl_guard {GUARD_VERSION} "
+                                f"(build {GUARD_BUILD}) — {GUARD_NOTES}")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --enforce: print orders, place nothing.")
     parser.add_argument("--per-lot-profit", type=float,
@@ -973,7 +980,9 @@ def main():
     state = load_state(args.state_file, today)
 
     print("=" * 60)
-    print("  DHAN F&O STRUCTURE GUARD (v3)")
+    print(f"  DHAN F&O STRUCTURE GUARD {GUARD_VERSION} "
+          f"(build {GUARD_BUILD})")
+    print(f"  Build notes : {GUARD_NOTES}")
     print("=" * 60)
     print(f"  Client ID   : {client_id}")
     print(f"  Mode        : "
