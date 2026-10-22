@@ -1,41 +1,52 @@
 {
-  "date": "2026-10-16",
-  "scan_time": "2026-10-16T15:00:24.653732",
+  "date": "2026-10-21",
+  "scan_time": "2026-10-21T15:00:22.930182",
   "basket_size": 30,
-  "signals_count": 3,
+  "signals_count": 4,
   "signals": [
     {
       "strategy": "pullback",
-      "symbol": "NYKAA",
-      "entry_price": 344.3,
-      "stop_loss": 320.2,
-      "target": 395.94,
+      "symbol": "LAURUSLABS",
+      "entry_price": 1999.7,
+      "stop_loss": 1859.72,
+      "target": 2299.65,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
-      "rsi": 56.9,
-      "date": "2026-10-16"
+      "rsi": 50.6,
+      "date": "2026-10-21"
+    },
+    {
+      "strategy": "reversal",
+      "symbol": "ETERNAL",
+      "entry_price": 306.5,
+      "stop_loss": 291.18,
+      "target": 331.02,
+      "stop_loss_pct": 5.0,
+      "target_pct": 8.0,
+      "rsi": 37.8,
+      "date": "2026-10-21"
     },
     {
       "strategy": "pullback",
-      "symbol": "RADICO",
-      "entry_price": 4468.3,
-      "stop_loss": 4155.52,
-      "target": 5138.54,
+      "symbol": "BHARTIARTL",
+      "entry_price": 1874.3,
+      "stop_loss": 1743.1,
+      "target": 2155.45,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
-      "rsi": 50.1,
-      "date": "2026-10-16"
+      "rsi": 56.6,
+      "date": "2026-10-21"
     },
     {
       "strategy": "pullback",
-      "symbol": "BHEL",
-      "entry_price": 434.1,
-      "stop_loss": 403.71,
-      "target": 499.22,
+      "symbol": "KOTAKBANK",
+      "entry_price": 436.4,
+      "stop_loss": 405.85,
+      "target": 501.86,
       "stop_loss_pct": 7.0,
       "target_pct": 15.0,
-      "rsi": 51.1,
-      "date": "2026-10-16"
+      "rsi": 57.2,
+      "date": "2026-10-21"
     }
   ]
 }
