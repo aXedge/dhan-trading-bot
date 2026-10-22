@@ -13,8 +13,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 import tempfile
 TMP = tempfile.mkdtemp()
 SF = os.path.join(TMP, "fno_guard_state.json")   # isolated state/hot-flag
-spec = importlib.util.spec_from_file_location(
-    "guard", os.path.join(HERE, "dhan_fno_pnl_guard.py"))
+# the guard may sit next to this test, or under futures_and_options/
+GUARD = next((p for p in (os.path.join(HERE, "dhan_fno_pnl_guard.py"),
+                          os.path.join(HERE, "futures_and_options",
+                                       "dhan_fno_pnl_guard.py"))
+              if os.path.exists(p)), None)
+if GUARD is None:
+    raise SystemExit("dhan_fno_pnl_guard.py not found next to this test "
+                     "or in ./futures_and_options/")
+spec = importlib.util.spec_from_file_location("guard", GUARD)
 g = importlib.util.module_from_spec(spec)
 sys.modules["guard"] = g
 spec.loader.exec_module(g)

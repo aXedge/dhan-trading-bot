@@ -94,7 +94,7 @@ RE_MTM = re.compile(
     r"^\[(\d{2}:\d{2}:\d{2})\]\s+(.+?):\s+(\d+) lot\(s\)\s+\|"
     r"\s+MTM Rs\.(-?[\d,]+(?:\.\d+)?)")
 RE_PEAK = re.compile(r"peak Rs\.(-?[\d,]+(?:\.\d+)?)")
-RE_FLATTEN = re.compile(r"(\w+) THRESHOLD BREACH.{0,6}FLATTENING\s+(.+?)\s+\*{3}")
+RE_FLATTEN = re.compile(r"([\w-]+) THRESHOLD BREACH.{0,6}FLATTENING\s+(.+?)\s+\*{3}")
 RE_EXIT = re.compile(r"\[EXIT\]\s+(\S+):\s+(BUY|SELL)\s+(\d+)\s+MKT")
 RE_NOOPEN = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\] No open F&O")
 RE_STRUCT = re.compile(r"\[STRUCT\]\s+(.+?)\s+\|\s*(.+)$")
