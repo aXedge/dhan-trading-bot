@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v13"
-GUARD_BUILD = "2026-10-17"
-GUARD_NOTES = "fix: struct_seen now persists, so [STRUCT] prints once per day"
+GUARD_VERSION = "v15"
+GUARD_BUILD = "2026-10-23"
+GUARD_NOTES = "simulated trailing profit stop: guard places + ratchets a broker-side SL"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -212,6 +212,9 @@ class DhanClient:
 
     def cancel_order(self, order_id):
         return self._request("DELETE", f"/orders/{order_id}")
+
+    def modify_order(self, order_id, body):
+        return self._request("PUT", f"/orders/{order_id}", json_body=body)
 
     def set_pnl_exit(self, profit_value, loss_value, product_types,
                      enable_kill_switch=False):
@@ -521,6 +524,73 @@ def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
                  else "FAILED: " + json.dumps(resp)[:120]))
 
 
+def _ensure_profit_sl(client, args, state, key, g, peak, ts):
+    """
+    SIMULATED TRAILING STOP, held at the broker. Dhan has no standalone
+    trailing SL (the trail lives in Super Orders, which bundle the entry leg),
+    so the guard does the trailing itself: once a structure's peak MTM reaches
+    --profit-sl per lot, it places a STOP_LOSS on each short leg at the price
+    where MTM would fall back to the FLOOR, then MODIFIES the trigger as the
+    floor rises. floor = max(arm, --trail-lock x peak) — i.e. at least the
+    mark, ratcheting up with the peak. Long legs are ignored (their max loss
+    is the premium paid). Broker-side, so it fires even if this process is
+    blind, and on the real price, so the guard's MTM error can't move it.
+    """
+    arm = getattr(args, "profit_sl", 0) or 0
+    if arm <= 0:
+        return
+    lots = max(g["lots"], 1)
+    if peak < arm * lots:
+        return                       # not enough profit to protect yet
+    floor = max(arm * lots, args.trail_lock * peak)
+    book = state.setdefault("sl_orders", {}).setdefault(key, {})
+    trigs = state.setdefault("sl_triggers", {}).setdefault(key, {})
+    for leg in g["legs"]:
+        if int(leg.get("netQty", 0) or 0) >= 0:
+            continue                              # short legs only
+        sec = str(leg.get("securityId", ""))
+        trigger = stop_trigger_price(g, leg, -floor)   # MTM = +floor
+        if trigger is None:
+            continue
+        prev = trigs.get(sec)
+        rec = book.get(sec)
+        body = sl_order_body(client.client_id, leg, trigger, args.sl_buffer_pct)
+        if rec in (None, "failed"):
+            if args.dry_run:
+                print(f"[{ts}]   [PSL-DRY] {leg.get('tradingSymbol','?')}: "
+                      f"BUY STOP_LOSS trig {trigger} limit {body['price']} "
+                      f"(floor Rs.{floor:,.0f})")
+                book[sec], trigs[sec] = "dry", trigger
+                continue
+            resp = client.place_order(body)
+            ok = isinstance(resp, dict) and "orderId" in resp
+            book[sec] = str(resp.get("orderId")) if ok else "failed"
+            if ok:
+                trigs[sec] = trigger
+            print(f"[{ts}]   [PSL] {leg.get('tradingSymbol','?')}: profit stop "
+                  f"trig Rs.{trigger} (floor Rs.{floor:,.0f}) -> "
+                  + (f"orderId {book[sec]}" if ok
+                     else "FAILED: " + json.dumps(resp)[:120]))
+        else:
+            # ratchet: on a short leg a HIGHER floor sits at a LOWER trigger,
+            # so move only when the trigger has fallen (tighter), never back.
+            if prev is not None and trigger < prev - 0.05:
+                if args.dry_run:
+                    print(f"[{ts}]   [PSL-DRY] ratchet "
+                          f"{leg.get('tradingSymbol','?')}: trig {prev} -> "
+                          f"{trigger} (floor Rs.{floor:,.0f})")
+                    trigs[sec] = trigger
+                    continue
+                resp = client.modify_order(rec, body)
+                ok = isinstance(resp, dict) and "errorCode" not in resp
+                if ok:
+                    trigs[sec] = trigger
+                print(f"[{ts}]   [PSL] ratchet {leg.get('tradingSymbol','?')}: "
+                      f"trig {prev} -> {trigger} -> "
+                      + ("ok" if ok
+                         else "FAILED: " + json.dumps(resp)[:120]))
+
+
 def _cancel_sl_orders(client, state, key=None, dry_run=False):
     """Cancel resting stop orders (all, or one structure's) and forget them."""
     book = state.setdefault("sl_orders", {})
@@ -720,13 +790,15 @@ def check_once(client, args, state):
         # --- resting broker-side stop on the short leg(s) (optional) ---
         if args.sl_order:
             _ensure_sl_orders(client, args, state, key, g, loss_limit, ts)
+        _ensure_profit_sl(client, args, state, key, g, peak, ts)
 
         ratio = (abs(mtm) / loss_limit) if mtm < 0 and loss_limit else 0.0
         _eod = getattr(args, "eod_exit", "") or ""
         eod_hit = bool(_eod) and datetime.now(IST).strftime("%H:%M") >= _eod
         breach = mtm <= floor
+        _eod_all = getattr(args, "eod_close_all", False)
         status = (f"{floor_label}-BREACH" if breach else
-                  "EOD-EXIT" if (eod_hit and mtm > 0) else
+                  "EOD-EXIT" if (eod_hit and (mtm > 0 or _eod_all)) else
                   "WARN75" if ratio >= 0.75 else
                   "WARN50" if ratio >= 0.50 else
                   "PROFIT-BREACH" if profit_limit and mtm >= profit_limit
@@ -781,9 +853,10 @@ def check_once(client, args, state):
             _handle_breach(client, args, state, key, g, mtm, floor, ts,
                            is_loss=(floor_label == "LOSS"),
                            label=floor_label)
-        elif eod_hit and mtm > 0:
+        elif eod_hit and (mtm > 0 or _eod_all):
             _handle_breach(client, args, state, key, g, mtm, mtm, ts,
-                           is_loss=False, label="EOD-PROFIT")
+                           is_loss=(mtm <= 0),
+                           label="EOD-PROFIT" if mtm > 0 else "EOD-CLOSE")
         elif profit_limit and mtm >= profit_limit:
             _handle_breach(client, args, state, key, g, mtm,
                            profit_limit, ts, is_loss=False)
@@ -924,6 +997,17 @@ def main():
                              "profit at/after this time, close it, so no "
                              "winning position is carried overnight. "
                              "Empty disables (default).")
+    parser.add_argument("--profit-sl", type=float, default=0,
+                        help="SIMULATED trailing stop, held at the broker: "
+                             "once a structure's peak MTM reaches this many "
+                             "rupees per lot, place a STOP_LOSS on each short "
+                             "leg at the profit floor and move it tighter as "
+                             "the floor rises. 0 disables (default).")
+    parser.add_argument("--eod-close-all", action="store_true",
+                        help="With --eod-exit: close EVERYTHING still open at "
+                             "the cutoff, losers included, so nothing is ever "
+                             "carried overnight (the gap is the one risk no "
+                             "intraday stop can catch).")
     parser.add_argument("--kill-on-reentry", action="store_true",
                         help="On re-entry into a locked structure: flatten "
                              "it and activate the kill switch.")
@@ -1007,8 +1091,9 @@ def main():
         print(f"  Book-profit : floor Rs.{args.profit_floor:,.0f}/lot "
               f"(runs above it, never gives back below it)")
     if args.eod_exit:
-        print(f"  EOD exit    : profitable positions closed at/after "
-              f"{args.eod_exit} IST")
+        _all = getattr(args, "eod_close_all", False)
+        print(f"  EOD exit    : {'ALL' if _all else 'profitable'} positions "
+              f"closed at/after {args.eod_exit} IST")
     if args.sl_order:
         print(f"  Resting stop: SL-L on short legs, buffer "
               f"{args.sl_buffer_pct:.1f}%")

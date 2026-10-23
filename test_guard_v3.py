@@ -456,5 +456,54 @@ _rl = g.load_state(SF, "2026-09-21")
 check("struct_seen survives save/load (so [STRUCT] prints once/day)",
       _rl.get("struct_seen") == {"NIFTY|2026-09-22": "sig"})
 
+# ---------- NEW: EOD close-all ----------
+out, _, _ = run({"eod_exit": "00:00", "eod_close_all": True, "enforce": True},
+                client=_client_mtm(-5000))
+check("eod close-all: flattens a LOSING position too", "EOD-CLOSE" in out)
+out, _, _ = run({"eod_exit": "00:00", "eod_close_all": False, "enforce": True},
+                client=_client_mtm(-5000))
+check("eod close-all OFF: a loser is still left alone", "EOD-CLOSE" not in out)
+
+# ---------- NEW: simulated trailing profit stop (--profit-sl) ----------
+PFP = [
+  {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23300 CE",
+   "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+   "productType": "MARGIN", "netQty": -260, "costPrice": 166.3,
+   "lastPrice": 100.0, "securityId": "11101", "unrealizedProfit": 17238.0},
+  {"exchangeSegment": "NSE_FNO", "tradingSymbol": "NIFTY 23700 CE",
+   "underlying": "NIFTY", "drvExpiryDate": "2026-09-22",
+   "productType": "MARGIN", "netQty": 260, "costPrice": 44.9,
+   "lastPrice": 30.0, "securityId": "11102", "unrealizedProfit": -3874.0},
+]
+
+class ClientPFP(MockClient):
+    def get_positions(self):
+        return [] if self.filled else PFP
+
+st = {"date": "2026-09-21", "alerts": {}, "locked": [], "peaks": {},
+      "struct_seen": {}, "sl_orders": {}}
+out, _, st = run({"profit_sl": 2000, "dry_run": True}, client=ClientPFP(),
+                 state=st)
+check("psl: profit stop placed once above the arm", "PSL" in out)
+trig = st.get("sl_triggers", {}).get("NIFTY|2026-09-22", {}).get("11101")
+check("psl: trigger sits above the leg price (a valid BUY stop)",
+      trig is not None and trig > 100)
+
+# a higher floor must ratchet the trigger TIGHTER (lower, for a short leg)
+st2 = {"date": "2026-09-21", "alerts": {}, "locked": [],
+       "peaks": {"NIFTY|2026-09-22": 20000}, "struct_seen": {},
+       "sl_orders": {"NIFTY|2026-09-22": {"11101": "dry"}},
+       "sl_triggers": {"NIFTY|2026-09-22": {"11101": trig}}}
+out2, _, _ = run({"profit_sl": 2000, "dry_run": True}, client=ClientPFP(),
+                 state=st2)
+check("psl: floor rising ratchets the trigger tighter", "ratchet" in out2)
+new_trig = st2.get("sl_triggers", {}).get("NIFTY|2026-09-22", {}).get("11101")
+check("psl: ratchet only ever tightens (never loosens)",
+      new_trig is not None and new_trig < trig)
+
+# below the arm: nothing placed
+out3, _, _ = run({"profit_sl": 5000, "dry_run": True}, client=_client_mtm(3000))
+check("psl: no stop while below the arm", "PSL" not in out3)
+
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
