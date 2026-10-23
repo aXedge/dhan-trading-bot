@@ -110,11 +110,11 @@ def run(episodes, arm, lock, mark, eod):
     out = []
     base = sum(replay(e, "actual", arm, lock, mark, eod)[0] for e in episodes)
     out.append("=" * 68)
-    out.append("RULE BACKTEST — replaying %d episodes from the guard logs"
-               % len(episodes))
+    out.append(f"RULE BACKTEST — replaying {len(episodes)} episodes "
+               f"from the guard logs")
     out.append("=" * 68)
-    out.append("  arm %.0f/lot | lock %.0f%% | mark %.0f/lot | eod %s"
-               % (arm, lock * 100, mark, eod or "off"))
+    out.append(f"  arm {arm:.0f}/lot | lock {lock*100:.0f}% | "
+               f"mark {mark:.0f}/lot | eod {eod or 'off'}")
     out.append("")
     out.append("  rule       total P&L      delta vs actual   exits")
     for rule in ("actual", "floor", "trail", "eod", "combined"):
@@ -123,11 +123,10 @@ def run(episodes, arm, lock, mark, eod):
         kinds = {}
         for r in res:
             kinds[r[1]] = kinds.get(r[1], 0) + 1
-        ks = " ".join("%s:%d" % (k, v) for k, v in sorted(kinds.items()))
-        out.append("  %-9s  Rs%+11,.0f   Rs%+11,.0f   %s"
-                   % (rule, tot, tot - base, ks))
+        ks = " ".join(f"{k}:{v}" for k, v in sorted(kinds.items()))
+        out.append(f"  {rule:<9s}  Rs{tot:+,.0f}   Rs{tot - base:+,.0f}   {ks}")
     out.append("")
-    out.append("  (MTM-based, and the guard's MTM runs ~36%% light; read the")
+    out.append("  (MTM-based, and the guard's MTM runs ~36% light; read the")
     out.append("   deltas, not the absolutes. Small sample: treat as a smell,")
     out.append("   not a verdict.)")
     return "\n".join(out)
@@ -141,19 +140,21 @@ def selftest():
         print(("  PASS  " if c else "  FAIL  ") + m)
         ok = ok and c
 
-    # an episode that peaks at 5000 then fades to -1000, 2 lots
     ep = {"date": "2026-10-01", "key": "K", "norm": "K", "lots": 2,
           "path": [("10:00", 500), ("10:30", 5000), ("11:00", 4500),
                    ("12:00", 3800), ("14:00", 1000), ("15:20", -1000)]}
-    chk(replay(ep, "actual", 2000, .5, 2000, "15:20")[0] == -1000, "actual = last MTM")
-    # floor at 2000/lot x 2 = 4000 -> exits at 3800
-    chk(replay(ep, "floor", 2000, .5, 2000, "15:20")[0] == 3800, "floor exits at the mark")
-    # trail lock 50% of peak 5000 = 2500 -> first MTM <= 2500 is 1000
-    chk(replay(ep, "trail", 2000, .5, 2000, "15:20")[0] == 1000, "trail exits at 50% of peak")
-    # eod -> the 15:20 sample
-    chk(replay(ep, "eod", 2000, .5, 2000, "15:20")[0] == -1000, "eod exits at the cutoff")
-    # combined: floor first (3800)
-    chk(replay(ep, "combined", 2000, .5, 2000, "15:20")[0] == 3800, "combined takes the floor first")
+    chk(replay(ep, "actual", 2000, .5, 2000, "15:20")[0] == -1000,
+        "actual = last MTM")
+    chk(replay(ep, "floor", 2000, .5, 2000, "15:20")[0] == 3800,
+        "floor exits at the mark")
+    chk(replay(ep, "trail", 2000, .5, 2000, "15:20")[0] == 1000,
+        "trail exits at 50% of peak")
+    chk(replay(ep, "eod", 2000, .5, 2000, "15:20")[0] == -1000,
+        "eod exits at the cutoff")
+    chk(replay(ep, "combined", 2000, .5, 2000, "15:20")[0] == 3800,
+        "combined takes the floor first")
+    tbl = run([ep], 2000, .5, 2000, "15:20")   # exercise the table formatting
+    chk("RULE BACKTEST" in tbl and "combined" in tbl, "run() renders the table")
     print()
     print("[SELFTEST] " + ("ALL PASS" if ok else "FAILURES PRESENT"))
     return 0 if ok else 1
