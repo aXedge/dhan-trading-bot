@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v15"
+GUARD_VERSION = "v16"
 GUARD_BUILD = "2026-10-23"
-GUARD_NOTES = "simulated trailing profit stop: guard places + ratchets a broker-side SL"
+GUARD_NOTES = "quiet flag: suppress the per-cycle banner under cron"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -1016,6 +1016,9 @@ def main():
                         help="Skip the INTRADAY pnlExit backstop (default on).")
     parser.add_argument("--interval", type=int, default=60,
                         help="Loop-mode poll interval seconds (default 60).")
+    parser.add_argument("--quiet", action="store_true",
+                        help="Suppress the startup banner. Use under cron: the "
+                             "banner is per-process and reprints every cycle.")
     parser.add_argument("--once", action="store_true",
                         help="Single pass and exit (cron).")
     parser.add_argument("--state-file", default=state_path_default())
@@ -1067,11 +1070,16 @@ def main():
     today = datetime.now(IST).strftime("%Y-%m-%d")
     state = load_state(args.state_file, today)
 
-    print("=" * 60)
-    print(f"  DHAN F&O STRUCTURE GUARD {GUARD_VERSION} "
+    def _banner(*a, **k):
+        # the banner is for a human at a terminal; under cron it reprints
+        # every cycle and only bloats the logs the audit has to scan.
+        if not getattr(args, "quiet", False):
+            print(*a, **k)
+    _banner("=" * 60)
+    _banner(f"  DHAN F&O STRUCTURE GUARD {GUARD_VERSION} "
           f"(build {GUARD_BUILD})")
-    print(f"  Build notes : {GUARD_NOTES}")
-    print("=" * 60)
+    _banner(f"  Build notes : {GUARD_NOTES}")
+    _banner("=" * 60)
     print(f"  Client ID   : {client_id}")
     print(f"  Mode        : "
           f"{'ENFORCE' if args.enforce else 'WATCH'}"
