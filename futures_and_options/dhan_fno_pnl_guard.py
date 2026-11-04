@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v18"
+GUARD_VERSION = "v19"
 GUARD_BUILD = "2026-11-04"
-GUARD_NOTES = "strategy-simple disables the trailing floor (it duplicated the broker ratchet)"
+GUARD_NOTES = "strategy-simple removes the profit ceiling: the ratchet is the only profit exit"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -900,6 +900,10 @@ def check_once(client, args, state):
     # --- INTRADAY backstop via Dhan's own pnlExit (MIS trades only) ---
     if args.backstop and total_lots > 0:
         profit_value = args.per_lot_profit * total_lots
+        if profit_value <= 0:
+            # no guard-side ceiling; keep Dhan's INTRADAY backstop valid with
+            # a far-away target so its loss leg stays armed
+            profit_value = (args.per_lot_loss * total_lots) * 10
         loss_value = args.per_lot_loss * total_lots
         active = client.get_pnl_exit()
         cur = (float(active.get("profit", 0) or 0),
@@ -1011,6 +1015,9 @@ def apply_strategy(args):
             args.eod_exit = "15:20"          # 10 minutes before the close
         if getattr(args, "profit_sl", 0) <= 0:
             args.profit_sl = getattr(args, "avg_win_per_lot", 2000.0)
+        # No ceiling. A fixed profit limit can only ever truncate a winner;
+        # the ratchet already protects the profit and lets the trade run.
+        args.per_lot_profit = 0
     return args
 
 
@@ -1165,8 +1172,11 @@ def main():
     if getattr(args, "strategy_simple", False):
         _banner("  Strategy    : SIMPLE — price MTM + entry stop + ratchet "
                 f"to Rs.{args.avg_win_per_lot:,.0f}/lot + EOD close-all")
-        _banner(f"  Caps        : profit limit Rs.{args.per_lot_profit:,.0f}/lot "
-                "still closes a winner — raise --per-lot-profit to let it run")
+        if args.per_lot_profit <= 0:
+            _banner("  Caps        : none — the ratchet is the only profit exit")
+        else:
+            _banner(f"  Caps        : profit limit Rs.{args.per_lot_profit:,.0f}/lot "
+                    "still closes a winner")
     _banner(f"  Sizing      : per-lot profit Rs.{args.per_lot_profit:,.0f} / "
           f"loss Rs.{args.per_lot_loss:,.0f} (lot {args.lot_size})")
     _banner(f"  Re-entry    : alert"

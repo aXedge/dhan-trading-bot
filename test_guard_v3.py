@@ -549,6 +549,7 @@ check("strategy-simple turns on EOD close-all", _a.eod_close_all is True)
 check("strategy-simple arms the profit stop at the avg win", _a.profit_sl == 2000.0)
 check("strategy-simple defaults the EOD cutoff to 15:20", _a.eod_exit == "15:20")
 check("strategy-simple disables the trailing floor", _a.trail_arm == 0)
+check("strategy-simple removes the profit ceiling", _a.per_lot_profit == 0)
 
 _a2 = SimpleNamespace(strategy_simple=False, mtm_source="auto", sl_order=False,
                       eod_close_all=False, profit_sl=0, avg_win_per_lot=2000.0)
