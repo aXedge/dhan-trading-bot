@@ -540,13 +540,15 @@ check("MTM-DIFF still logged on the api basis", "[MTM-DIFF]" in out)
 # ---------- NEW: --strategy-simple bundle ----------
 _a = SimpleNamespace(strategy_simple=True, mtm_source="auto", sl_order=False,
                      eod_close_all=False, eod_exit="", profit_sl=0,
-                     avg_win_per_lot=2000.0)
+                     avg_win_per_lot=2000.0, trail_arm=2000.0,
+                     per_lot_profit=4500.0)
 g.apply_strategy(_a)
 check("strategy-simple forces the price basis", _a.mtm_source == "price")
 check("strategy-simple turns on the entry stop", _a.sl_order is True)
 check("strategy-simple turns on EOD close-all", _a.eod_close_all is True)
 check("strategy-simple arms the profit stop at the avg win", _a.profit_sl == 2000.0)
 check("strategy-simple defaults the EOD cutoff to 15:20", _a.eod_exit == "15:20")
+check("strategy-simple disables the trailing floor", _a.trail_arm == 0)
 
 _a2 = SimpleNamespace(strategy_simple=False, mtm_source="auto", sl_order=False,
                       eod_close_all=False, profit_sl=0, avg_win_per_lot=2000.0)

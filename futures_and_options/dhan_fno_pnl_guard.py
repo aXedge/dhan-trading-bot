@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v17"
+GUARD_VERSION = "v18"
 GUARD_BUILD = "2026-11-04"
-GUARD_NOTES = "price-based MTM (one P&L, not two); --strategy-simple bundle"
+GUARD_NOTES = "strategy-simple disables the trailing floor (it duplicated the broker ratchet)"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -1003,6 +1003,9 @@ def apply_strategy(args):
     if getattr(args, "strategy_simple", False):
         args.mtm_source = "price"
         args.sl_order = True
+        # --trail-arm defaults to 2000, so leaving it alone would silently
+        # arm the trailing floor and duplicate the broker-side ratchet.
+        args.trail_arm = 0
         args.eod_close_all = True
         if not getattr(args, "eod_exit", ""):
             args.eod_exit = "15:20"          # 10 minutes before the close
@@ -1162,6 +1165,8 @@ def main():
     if getattr(args, "strategy_simple", False):
         _banner("  Strategy    : SIMPLE — price MTM + entry stop + ratchet "
                 f"to Rs.{args.avg_win_per_lot:,.0f}/lot + EOD close-all")
+        _banner(f"  Caps        : profit limit Rs.{args.per_lot_profit:,.0f}/lot "
+                "still closes a winner — raise --per-lot-profit to let it run")
     _banner(f"  Sizing      : per-lot profit Rs.{args.per_lot_profit:,.0f} / "
           f"loss Rs.{args.per_lot_loss:,.0f} (lot {args.lot_size})")
     _banner(f"  Re-entry    : alert"
