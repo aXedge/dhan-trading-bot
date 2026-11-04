@@ -118,6 +118,8 @@ def run(args_overrides, client=None, state=None):
         profit_floor=0, eod_exit="",   # new book-profit knobs OFF
         sl_order=False, sl_buffer_pct=2.0,
         fast_interval=30, fast_window=55,
+        mtm_source="price", mtm_diff_alert=1000.0,   # v17 default basis
+        strategy_simple=False, avg_win_per_lot=2000.0,
         state_file=SF)
     for k, v in args_overrides.items():
         setattr(args, k, v)
@@ -190,7 +192,8 @@ check("backstop: DELIVERY never used", all(
 fresh = g.load_state("/nonexistent/x.json", "2026-09-22")
 check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "alerts": {}, "locked": [],
-                                                 "peaks": {}, "struct_seen": {}})
+                                                 "peaks": {}, "struct_seen": {},
+                                                 "mtm_diff_seen": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -504,6 +507,52 @@ check("psl: ratchet only ever tightens (never loosens)",
 # below the arm: nothing placed
 out3, _, _ = run({"profit_sl": 5000, "dry_run": True}, client=_client_mtm(3000))
 check("psl: no stop while below the arm", "PSL" not in out3)
+
+# ---------- NEW: one P&L, not two (v17) ----------
+_LEG = {"netQty": -260, "costPrice": 166.3, "lastPrice": 140.0,
+        "unrealizedProfit": -5000.0, "exchangeSegment": "NSE_FNO",
+        "drvExpiryDate": "2026-11-03", "tradingSymbol": "NIFTY 23000 CE",
+        "securityId": "5001", "productType": "MARGIN"}
+check("mtm price basis = net*(last-cost)",
+      abs(g._leg_mtm(_LEG, "price") - (-260 * (140.0 - 166.3))) < 0.01)
+check("mtm api basis = unrealizedProfit", g._leg_mtm(_LEG, "api") == -5000.0)
+check("mtm auto prefers api (legacy)", g._leg_mtm(_LEG, "auto") == -5000.0)
+check("the two bases genuinely differ here",
+      abs(g._leg_mtm(_LEG, "price") - g._leg_mtm(_LEG, "api")) > 1000)
+
+_G = g.group_structures([_LEG], 65, "price")
+_K = list(_G)[0]
+check("group_structures honours mtm_source", _G[_K]["mtm"] == _G[_K]["mtm_price"])
+check("group_structures also records the api basis",
+      _G[_K]["mtm_api"] == -5000.0)
+
+class ClientBasis(MockClient):
+    def get_positions(self):
+        return [] if self.filled else [_LEG]
+out, _, _ = run({"mtm_source": "price", "mtm_diff_alert": 1000.0},
+                client=ClientBasis())
+check("MTM-DIFF logged when api and price disagree", "[MTM-DIFF]" in out)
+
+out, _, _ = run({"mtm_source": "api", "mtm_diff_alert": 1000.0},
+                client=ClientBasis())
+check("MTM-DIFF still logged on the api basis", "[MTM-DIFF]" in out)
+
+# ---------- NEW: --strategy-simple bundle ----------
+_a = SimpleNamespace(strategy_simple=True, mtm_source="auto", sl_order=False,
+                     eod_close_all=False, eod_exit="", profit_sl=0,
+                     avg_win_per_lot=2000.0)
+g.apply_strategy(_a)
+check("strategy-simple forces the price basis", _a.mtm_source == "price")
+check("strategy-simple turns on the entry stop", _a.sl_order is True)
+check("strategy-simple turns on EOD close-all", _a.eod_close_all is True)
+check("strategy-simple arms the profit stop at the avg win", _a.profit_sl == 2000.0)
+check("strategy-simple defaults the EOD cutoff to 15:20", _a.eod_exit == "15:20")
+
+_a2 = SimpleNamespace(strategy_simple=False, mtm_source="auto", sl_order=False,
+                      eod_close_all=False, profit_sl=0, avg_win_per_lot=2000.0)
+g.apply_strategy(_a2)
+check("without the flag nothing is changed",
+      _a2.mtm_source == "auto" and _a2.sl_order is False and _a2.profit_sl == 0)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

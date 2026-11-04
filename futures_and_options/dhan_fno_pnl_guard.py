@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v16"
-GUARD_BUILD = "2026-10-23"
-GUARD_NOTES = "quiet flag: suppress the per-cycle banner under cron"
+GUARD_VERSION = "v17"
+GUARD_BUILD = "2026-11-04"
+GUARD_NOTES = "price-based MTM (one P&L, not two); --strategy-simple bundle"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -253,16 +253,30 @@ def _underlying_of(position):
     return m.group(1).rstrip("-") if m else sym or "UNKNOWN"
 
 
-def _leg_mtm(position):
-    """Unrealized P&L of one position leg (positive = profit)."""
+def _leg_mtm(position, source="auto"):
+    """
+    Unrealized P&L of one position leg (positive = profit).
+
+    Two bases exist and they do NOT always agree:
+      "api"   -> Dhan's unrealizedProfit field
+      "price" -> netQty * (last - cost), computed from prices
+
+    The stop triggers (stop_trigger_price) are computed on the PRICE basis.
+    Using the api field for the displayed MTM meant the guard could show one
+    P&L and place stops consistent with a different one — the reason the
+    audit's exit_mtm disagreed with the fills. Default is "price" so there is
+    exactly one P&L in this script.
+    """
+    api_val = None
     for key in UPL_KEYS:
         val = position.get(key)
         if val is not None:
             try:
-                return float(val)
+                api_val = float(val)
             except (TypeError, ValueError):
-                break
-    # Fallback: netQty * (last - cost)
+                api_val = None
+            break
+    price_val = None
     try:
         net = int(position.get("netQty", 0) or 0)
         cost = float(position.get("costPrice", 0) or 0)
@@ -272,13 +286,18 @@ def _leg_mtm(position):
                 last = float(position.get(k))
                 break
         if last is not None:
-            return net * (last - cost)
+            price_val = net * (last - cost)
     except (TypeError, ValueError):
-        return 0.0
-    return 0.0
+        price_val = None
+
+    if source == "api":
+        return api_val if api_val is not None else (price_val or 0.0)
+    if source == "price":
+        return price_val if price_val is not None else (api_val or 0.0)
+    return api_val if api_val is not None else (price_val or 0.0)
 
 
-def group_structures(positions, lot_size):
+def group_structures(positions, lot_size, mtm_source="price"):
     """
     Group live F&O positions into structures (underlying + expiry).
 
@@ -303,9 +322,12 @@ def group_structures(positions, lot_size):
         key = f"{underlying}|{expiry}"
         g = groups.setdefault(
             key, {"underlying": underlying, "expiry": expiry,
-                  "legs": [], "lots": 0, "mtm": 0.0})
+                  "legs": [], "lots": 0, "mtm": 0.0,
+                  "mtm_api": 0.0, "mtm_price": 0.0})
         g["legs"].append(p)
-        g["mtm"] += _leg_mtm(p)
+        g["mtm"] += _leg_mtm(p, mtm_source)
+        g["mtm_api"] += _leg_mtm(p, "api")
+        g["mtm_price"] += _leg_mtm(p, "price")
     for g in groups.values():
         max_qty = max(abs(int(l.get("netQty", 0) or 0)) for l in g["legs"])
         g["lots"] = max_qty // lot_size if lot_size > 0 else 0
@@ -323,7 +345,7 @@ def market_open(now=None):
 # ---------------------------------------------------------------------------
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
-DAILY_KEYS = ("alerts", "locked", "struct_seen")  # reset at start of day;
+DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen")  # reset at start of day;
                                                   # struct_seen MUST persist
                                                   # within the day or [STRUCT]
                                                   # reprints every cycle
@@ -387,7 +409,7 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
-             "struct_seen": {}}
+             "struct_seen": {}, "mtm_diff_seen": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -688,7 +710,8 @@ def refresh_structure(client, structure, args):
     resp = client.get_positions()
     positions = resp if isinstance(resp, list) else (
         resp.get("data", []) if isinstance(resp, dict) else [])
-    structures = group_structures(positions, args.lot_size)
+    structures = group_structures(positions, args.lot_size,
+                                     args.mtm_source)
     key = f"{structure['underlying']}|{structure['expiry']}"
     return structures.get(key)
 
@@ -703,7 +726,8 @@ def check_once(client, args, state):
     resp = client.get_positions()
     positions = resp if isinstance(resp, list) else (
         resp.get("data", []) if isinstance(resp, dict) else [])
-    structures = group_structures(positions, args.lot_size)
+    structures = group_structures(positions, args.lot_size,
+                                     args.mtm_source)
 
     # forget peaks of structures that no longer exist (closed/expired):
     # a re-opened structure starts its trailing memory from scratch
@@ -750,6 +774,18 @@ def check_once(client, args, state):
             loss_limit = args.loss
 
         mtm = g["mtm"]
+
+        # The displayed MTM must come from the same basis as the stop
+        # triggers, or the guard shows one P&L and stops against another.
+        # Log the gap once per structure per day.
+        _api_m, _px_m = g.get("mtm_api", mtm), g.get("mtm_price", mtm)
+        if abs(_api_m - _px_m) >= args.mtm_diff_alert:
+            _seen = state.setdefault("mtm_diff_seen", {})
+            _sig = f"{_api_m:.0f}|{_px_m:.0f}"
+            if _seen.get(key) != _sig:
+                _seen[key] = _sig
+                print(f"[{ts}] [MTM-DIFF] {key}: api Rs.{_api_m:,.0f} vs "
+                      f"price Rs.{_px_m:,.0f} (using {args.mtm_source})")
 
         # --- MTM sanity probe: open legs but MTM reads exactly 0 usually
         # means the positions payload's P&L fields didn't match our guesses
@@ -955,6 +991,26 @@ def _handle_breach(client, args, state, key, g, mtm, limit, ts, is_loss,
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+def apply_strategy(args):
+    """
+    --strategy-simple: the agreed configuration in one auditable switch.
+
+      * MTM on the price basis (one P&L, the same one the stops use)
+      * a broker STOP_LOSS placed on the short legs at entry
+      * that stop ratcheted to the average win once the trade clears it
+      * everything flattened by the EOD cutoff, winners and losers
+    """
+    if getattr(args, "strategy_simple", False):
+        args.mtm_source = "price"
+        args.sl_order = True
+        args.eod_close_all = True
+        if not getattr(args, "eod_exit", ""):
+            args.eod_exit = "15:20"          # 10 minutes before the close
+        if getattr(args, "profit_sl", 0) <= 0:
+            args.profit_sl = getattr(args, "avg_win_per_lot", 2000.0)
+    return args
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Dhan F&O Structure Guard v3 — position-level MTM guard",
@@ -1016,6 +1072,23 @@ def main():
                         help="Skip the INTRADAY pnlExit backstop (default on).")
     parser.add_argument("--interval", type=int, default=60,
                         help="Loop-mode poll interval seconds (default 60).")
+    parser.add_argument("--mtm-source", choices=["price", "api", "auto"],
+                        default="price",
+                        help="Structure MTM basis. 'price' (default) = "
+                             "sum netQty*(last-cost), the SAME basis the "
+                             "broker stop triggers use. 'api' = Dhan's "
+                             "unrealizedProfit. 'auto' = api if present "
+                             "(pre-v17 behaviour).")
+    parser.add_argument("--mtm-diff-alert", type=float, default=1000.0,
+                        help="Log [MTM-DIFF] when the api and price MTM "
+                             "differ by at least this many rupees.")
+    parser.add_argument("--strategy-simple", action="store_true",
+                        help="The agreed configuration in one switch: price "
+                             "MTM, broker stop at entry, stop ratcheted to "
+                             "the average win, flatten everything by EOD.")
+    parser.add_argument("--avg-win-per-lot", type=float, default=2000.0,
+                        help="Average winning day per lot. --strategy-simple "
+                             "uses it as the profit-stop arm and floor.")
     parser.add_argument("--quiet", action="store_true",
                         help="Suppress the startup banner. Use under cron: the "
                              "banner is per-process and reprints every cycle.")
@@ -1041,7 +1114,7 @@ def main():
                              "call unless the trailing stop is armed (per "
                              "the hot flag). Runs one normal pass when "
                              "armed. Intended for an every-minute cron.")
-    args = parser.parse_args()
+    args = apply_strategy(parser.parse_args())
 
     # --- adaptive polling gate: no armed trailing stop -> no API call ---
     if args.fast and not hot_flag_active(args.state_file):
@@ -1080,33 +1153,38 @@ def main():
           f"(build {GUARD_BUILD})")
     _banner(f"  Build notes : {GUARD_NOTES}")
     _banner("=" * 60)
-    print(f"  Client ID   : {client_id}")
-    print(f"  Mode        : "
+    _banner(f"  Client ID   : {client_id}")
+    _banner(f"  Mode        : "
           f"{'ENFORCE' if args.enforce else 'WATCH'}"
           f"{' (DRY RUN)' if args.dry_run else ''}")
-    print(f"  Sizing      : per-lot profit Rs.{args.per_lot_profit:,.0f} / "
+    _banner(f"  MTM basis   : {args.mtm_source} "
+            f"(warn if api/price differ by Rs.{args.mtm_diff_alert:,.0f})")
+    if getattr(args, "strategy_simple", False):
+        _banner("  Strategy    : SIMPLE — price MTM + entry stop + ratchet "
+                f"to Rs.{args.avg_win_per_lot:,.0f}/lot + EOD close-all")
+    _banner(f"  Sizing      : per-lot profit Rs.{args.per_lot_profit:,.0f} / "
           f"loss Rs.{args.per_lot_loss:,.0f} (lot {args.lot_size})")
-    print(f"  Re-entry    : alert"
+    _banner(f"  Re-entry    : alert"
           + (" + flatten + kill switch" if args.kill_on_reentry else " only"))
-    print(f"  Backstop    : INTRADAY pnlExit "
+    _banner(f"  Backstop    : INTRADAY pnlExit "
           f"({'on' if args.backstop else 'off'})")
     if args.trail_arm > 0:
-        print(f"  Trailing    : arm at Rs.{args.trail_arm:,.0f}, "
+        _banner(f"  Trailing    : arm at Rs.{args.trail_arm:,.0f}, "
               f"lock {args.trail_lock * 100:.0f}% of peak")
     else:
-        print("  Trailing    : off")
+        _banner("  Trailing    : off")
     if args.profit_floor > 0:
-        print(f"  Book-profit : floor Rs.{args.profit_floor:,.0f}/lot "
+        _banner(f"  Book-profit : floor Rs.{args.profit_floor:,.0f}/lot "
               f"(runs above it, never gives back below it)")
     if args.eod_exit:
         _all = getattr(args, "eod_close_all", False)
-        print(f"  EOD exit    : {'ALL' if _all else 'profitable'} positions "
+        _banner(f"  EOD exit    : {'ALL' if _all else 'profitable'} positions "
               f"closed at/after {args.eod_exit} IST")
     if args.sl_order:
-        print(f"  Resting stop: SL-L on short legs, buffer "
+        _banner(f"  Resting stop: SL-L on short legs, buffer "
               f"{args.sl_buffer_pct:.1f}%")
-    print(f"  Started at  : {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
-    print("=" * 60)
+    _banner(f"  Started at  : {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
+    _banner("=" * 60)
 
     client = DhanClient(token, client_id)
     funds = client.get_fund_limits()
