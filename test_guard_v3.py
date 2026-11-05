@@ -193,7 +193,8 @@ fresh = g.load_state("/nonexistent/x.json", "2026-09-22")
 check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "alerts": {}, "locked": [],
                                                  "peaks": {}, "struct_seen": {},
-                                                 "mtm_diff_seen": {}})
+                                                 "mtm_diff_seen": {},
+                                                 "no_price_seen": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -210,7 +211,8 @@ FADE = [dict(POSITIONS[0], unrealizedProfit=500.0),
         dict(POSITIONS[1], unrealizedProfit=300.0)]   # same position, +800
 SMALL = [dict(POSITIONS[0], unrealizedProfit=900.0),
          dict(POSITIONS[1], unrealizedProfit=600.0)]  # +1,500 (below arm)
-TR = {"trail_arm": 2000, "trail_lock": 0.5}
+# the legacy trail tests use synthetic P&L expressed on the API basis
+TR = {"trail_arm": 2000, "trail_lock": 0.5, "mtm_source": "api"}
 
 # 10a: profit arms the trail, floor ratchets, nothing exits yet
 out, mc, stt = run({"enforce": True, **TR}, client=MockClientP(UP))
@@ -556,6 +558,35 @@ _a2 = SimpleNamespace(strategy_simple=False, mtm_source="auto", sl_order=False,
 g.apply_strategy(_a2)
 check("without the flag nothing is changed",
       _a2.mtm_source == "auto" and _a2.sl_order is False and _a2.profit_sl == 0)
+
+# ---------- NEW: price derivation (v20) ----------
+_SHORT = {"netQty": -260, "costPrice": 166.3, "unrealizedProfit": 6838.0}
+_LONG = {"netQty": 260, "costPrice": 44.9, "unrealizedProfit": -3874.0}
+check("_leg_price derives from cost + upl/net when lastPrice is absent",
+      abs(g._leg_price(_SHORT) - 140.0) < 0.01)
+check("_leg_price prefers lastPrice when present",
+      g._leg_price({**_SHORT, "lastPrice": 99.0}) == 99.0)
+check("_leg_price returns None with no price and no upl",
+      g._leg_price({"netQty": -130, "costPrice": 100.0}) is None)
+
+_STRUCT = {"legs": [_SHORT, _LONG]}
+_trig = g.stop_trigger_price(_STRUCT, _SHORT, 10000)
+check("stop trigger solves without a lastPrice field",
+      _trig is not None and _trig > 0)
+check("stop trigger refuses when a leg has no price at all",
+      g.stop_trigger_price({"legs": [{"netQty": -130, "costPrice": 100.0}]},
+                           {"netQty": -130, "costPrice": 100.0}, 7200) is None)
+
+_NPLEG = {"netQty": -130, "costPrice": 100.0, "exchangeSegment": "NSE_FNO",
+          "drvExpiryDate": "2026-11-09", "tradingSymbol": "NIFTY 24000 CE",
+          "securityId": "7001", "productType": "MARGIN"}
+
+class ClientNP(MockClient):
+    def get_positions(self):
+        return [] if self.filled else [_NPLEG]
+
+out, _, _ = run({}, client=ClientNP())
+check("NO-PRICE warns instead of skipping silently", "[NO-PRICE]" in out)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v19"
-GUARD_BUILD = "2026-11-04"
-GUARD_NOTES = "strategy-simple removes the profit ceiling: the ratchet is the only profit exit"
+GUARD_VERSION = "v20"
+GUARD_BUILD = "2026-11-05"
+GUARD_NOTES = "derive leg price when the payload omits it, so broker stops stop skipping silently"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -253,6 +253,42 @@ def _underlying_of(position):
     return m.group(1).rstrip("-") if m else sym or "UNKNOWN"
 
 
+def _leg_price(position):
+    """
+    Last traded price for a leg.
+
+    Dhan's positions payload does not always carry lastPrice (or ltp /
+    marketPrice). When it is missing, the broker stop used to skip SILENTLY
+    and the price-basis MTM fell back to the API field — which is why [SL]
+    and [PSL] never appeared on live structures. Derive it from
+    costPrice + unrealizedProfit/netQty, which is algebraically the same
+    number, and return None only if that is impossible too.
+    """
+    for k in LAST_KEYS:
+        v = position.get(k)
+        if v is not None:
+            try:
+                f = float(v)
+                if f > 0:
+                    return f
+            except (TypeError, ValueError):
+                pass
+    try:
+        net = int(position.get("netQty", 0) or 0)
+        cost = float(position.get("costPrice", 0) or 0)
+        upl = None
+        for k in UPL_KEYS:
+            if position.get(k) is not None:
+                upl = float(position.get(k))
+                break
+        if net != 0 and upl is not None and cost > 0:
+            px = cost + upl / net
+            return px if px > 0 else None
+    except (TypeError, ValueError, ZeroDivisionError):
+        pass
+    return None
+
+
 def _leg_mtm(position, source="auto"):
     """
     Unrealized P&L of one position leg (positive = profit).
@@ -280,13 +316,9 @@ def _leg_mtm(position, source="auto"):
     try:
         net = int(position.get("netQty", 0) or 0)
         cost = float(position.get("costPrice", 0) or 0)
-        last = None
-        for k in LAST_KEYS:
-            if position.get(k) is not None:
-                last = float(position.get(k))
-                break
-        if last is not None:
-            price_val = net * (last - cost)
+        px = _leg_price(position)
+        if px is not None:
+            price_val = net * (px - cost)
     except (TypeError, ValueError):
         price_val = None
 
@@ -345,7 +377,8 @@ def market_open(now=None):
 # ---------------------------------------------------------------------------
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
-DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen")  # reset at start of day;
+DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen",
+              "no_price_seen")  # reset at start of day;
                                                   # struct_seen MUST persist
                                                   # within the day or [STRUCT]
                                                   # reprints every cycle
@@ -409,7 +442,8 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
-             "struct_seen": {}, "mtm_diff_seen": {}}
+             "struct_seen": {}, "mtm_diff_seen": {},
+             "no_price_seen": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -471,17 +505,18 @@ def stop_trigger_price(structure, leg, loss_limit):
         net = int(leg.get("netQty", 0) or 0)
         if net >= 0:
             return None                 # long legs: max loss = premium paid
-        last = float(leg.get("lastPrice") or 0)
         cost = float(leg.get("costPrice") or 0)
-        if last <= 0:
+        if _leg_price(leg) is None:
             return None
         others = 0.0
         for l in structure["legs"]:
             if l is leg:
                 continue
+            px = _leg_price(l)
+            if px is None:
+                return None
             others += (int(l.get("netQty", 0) or 0)
-                       * (float(l.get("lastPrice") or 0)
-                          - float(l.get("costPrice") or 0)))
+                       * (px - float(l.get("costPrice") or 0)))
         # net*(X - cost) + others = -loss_limit  ->  solve for X
         return round(cost + (-loss_limit - others) / net, 2)
     except (TypeError, ValueError, ZeroDivisionError):
@@ -786,6 +821,15 @@ def check_once(client, args, state):
                 _seen[key] = _sig
                 print(f"[{ts}] [MTM-DIFF] {key}: api Rs.{_api_m:,.0f} vs "
                       f"price Rs.{_px_m:,.0f} (using {args.mtm_source})")
+
+        # A leg with no derivable price means the broker stop will skip.
+        # Say so once per structure per day instead of failing silently.
+        if any(_leg_price(l) is None for l in g["legs"]):
+            _np = state.setdefault("no_price_seen", {})
+            if not _np.get(key):
+                _np[key] = True
+                print(f"[{ts}] [NO-PRICE] {key}: a leg has no derivable price "
+                      "— broker stops will skip. Check the positions payload.")
 
         # --- MTM sanity probe: open legs but MTM reads exactly 0 usually
         # means the positions payload's P&L fields didn't match our guesses
