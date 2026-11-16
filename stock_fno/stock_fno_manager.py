@@ -35,6 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_POSITIONS = os.path.join(HERE, "stock_fno_positions.json")
 DEFAULT_STATE = os.path.join(HERE, "stock_fno_state.json")
 DEFAULT_LOG = os.path.join(HERE, "stock_fno_management.csv")
+HOLDINGS_STATE = os.path.join(HERE, "stock_fno_holdings.json")
 
 INDEX_UNDERLYINGS = ("NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY",
                      "NIFTYNXT50")
@@ -579,6 +580,16 @@ def main():
     previews.sort(key=lambda o: 0 if o["transaction_type"] == "BUY" else 1)
     save_state(args.state, state)
     log_rows(args.log, rows)
+
+    # publish the counts so the 08:00 scan enforces the holding rule without
+    # anyone having to remember a flag
+    try:
+        with open(HOLDINGS_STATE, "w") as f:
+            json.dump({"date": dt.date.today().isoformat(),
+                       "condors": len(_condors), "spreads": _ns,
+                       "keys": sorted(book)}, f, indent=2)
+    except OSError as e:
+        print(f"[STATE] could not write {HOLDINGS_STATE}: {e}")
 
     if previews and (args.preview or args.execute):
         print(f"\n=== EXIT PREVIEW — {len(previews)} leg(s) ===")

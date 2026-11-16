@@ -340,8 +340,10 @@ def main():
                     help="max iron condors HELD at once (default 1)")
     ap.add_argument("--max-spreads", type=int, default=2,
                     help="max single spreads HELD at once (default 2)")
+    ap.add_argument("--holdings-state", default="",
+                    help="path to stock_fno_holdings.json written by the manager")
     ap.add_argument("--open-condors", type=int, default=0,
-                    help="iron condors already open")
+                    help="iron condors already open (overridden by --holdings-state)")
     ap.add_argument("--open-spreads", type=int, default=0,
                     help="single spreads already open")
     ap.add_argument("--capital", type=float, default=0.0,
@@ -356,6 +358,29 @@ def main():
 
     if args.selftest:
         return selftest()
+
+    # the manager publishes the live counts each cycle; trust them over the
+    # flags, but only if they are from today - a stale file is worse than none
+    _hs = args.holdings_state or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "stock_fno_holdings.json")
+    if os.path.exists(_hs):
+        try:
+            import json as _json
+            import datetime as _dt
+            with open(_hs) as _f:
+                _h = _json.load(_f)
+            if _h.get("date") == _dt.date.today().isoformat():
+                args.open_condors = int(_h.get("condors", 0))
+                args.open_spreads = int(_h.get("spreads", 0))
+                print(f"holdings state: {args.open_condors} condor(s), "
+                      f"{args.open_spreads} spread(s) (from {os.path.basename(_hs)})")
+            else:
+                print(f"holdings state is from {_h.get('date')}, not today - "
+                      "IGNORING it. Counts may be wrong; check the manager log.")
+        except (OSError, ValueError) as _e:
+            print(f"holdings state unreadable ({str(_e)[:40]}) - using flags")
+    elif args.open_condors or args.open_spreads:
+        print("no holdings state file; using the flags on the command line")
 
     print(f"fetching FO bhavcopy {args.date or '(newest published)'} ...")
     fo, fname, used = fetch_fo(args.date)
