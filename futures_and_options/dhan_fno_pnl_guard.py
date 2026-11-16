@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v22"
+GUARD_VERSION = "v23"
 GUARD_BUILD = "2026-11-16"
-GUARD_NOTES = "index-only: stock options are excluded and left to stock_fno_manager.py"
+GUARD_NOTES = "cap stop placements per leg and per day; 16-Nov placed 1,054 in one session"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -409,7 +409,7 @@ def market_open(now=None):
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
 DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen",
-              "no_price_seen", "sl_orders")  # reset at start of day;
+              "no_price_seen", "sl_orders", "sl_placed")  # reset at start of day;
                                                   # sl_orders MUST persist within
                                                   # the day or a new broker stop
                                                   # is placed every single cycle
@@ -477,7 +477,7 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
              "struct_seen": {}, "mtm_diff_seen": {},
-             "no_price_seen": {}, "sl_orders": {}}
+             "no_price_seen": {}, "sl_orders": {}, "sl_placed": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -582,6 +582,33 @@ def sl_order_body(client_id, leg, trigger, buffer_pct):
     return body
 
 
+def _sl_budget_ok(state, sec, args, ts, label):
+    """Refuse to place a stop beyond the per-leg or per-day cap.
+
+    On 16-Nov the guard placed 1,054 stops in a single session - 3 short legs
+    x 351 cycles - because sl_orders was not persisted. That fix removes the
+    cause. This cap means a regression cannot go unnoticed again: it trips
+    loudly at 20 instead of silently at 1,054.
+
+    Deliberately does NOT cap exits. Flatten and EOD orders must always go
+    through, even when the stop budget is exhausted.
+    """
+    counts = state.setdefault("sl_placed", {})
+    total = sum(counts.values())
+    per_leg = counts.get(sec, 0)
+    if per_leg >= args.max_sl_per_leg:
+        print(f"[{ts}]   [SL-CAP] {label}: {per_leg} stop(s) already placed on "
+              f"this leg today (limit {args.max_sl_per_leg}) - refusing another")
+        return False
+    if total >= args.max_sl_per_day:
+        print(f"[{ts}]   [SL-CAP] ALERT: {total} stops placed today "
+              f"(limit {args.max_sl_per_day}) - refusing further stops. This "
+              "should never happen; investigate before the next session.")
+        return False
+    counts[sec] = per_leg + 1
+    return True
+
+
 def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
     """Place ONE resting stop per short leg and remember it.
 
@@ -605,6 +632,9 @@ def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
             continue                              # already resting
         trigger = stop_trigger_price(g, leg, loss_limit)
         if trigger is None:
+            continue
+        if not _sl_budget_ok(state, sec, args, ts, leg.get("tradingSymbol", "?")):
+            book[sec] = "capped"
             continue
         body = sl_order_body(client.client_id, leg, trigger, args.sl_buffer_pct)
         if args.dry_run:
@@ -1147,6 +1177,10 @@ def main():
                                 f"(build {GUARD_BUILD}) — {GUARD_NOTES}")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --enforce: print orders, place nothing.")
+    parser.add_argument("--max-sl-per-leg", type=int, default=2,
+                        help="max resting stops placed per leg per day")
+    parser.add_argument("--max-sl-per-day", type=int, default=20,
+                        help="max resting stops placed across the day")
     parser.add_argument("--index-only", action="store_true",
                         help="manage index options only; stock options are "
                              "left to stock_fno_manager.py")

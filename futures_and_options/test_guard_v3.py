@@ -120,6 +120,7 @@ def run(args_overrides, client=None, state=None):
         fast_interval=30, fast_window=55,
         mtm_source="price", mtm_diff_alert=1000.0,   # v17 default basis
         strategy_simple=False, avg_win_per_lot=2000.0,
+        max_sl_per_leg=2, max_sl_per_day=20, index_only=False,
         state_file=SF)
     for k, v in args_overrides.items():
         setattr(args, k, v)
@@ -195,7 +196,8 @@ check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "peaks": {}, "struct_seen": {},
                                                  "mtm_diff_seen": {},
                                                  "no_price_seen": {},
-                                                 "sl_orders": {}})
+                                                 "sl_orders": {},
+                                                 "sl_placed": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -608,6 +610,28 @@ with _tf.TemporaryDirectory() as _td:
 check("sl_orders is a DAILY_KEY", "sl_orders" in g.DAILY_KEYS)
 check("fresh state carries an sl_orders book",
       "sl_orders" in g.load_state("/nonexistent/state.json", _today))
+
+# ---------- NEW: stop-placement cap (v23) ----------
+class _A:
+    max_sl_per_leg = 2
+    max_sl_per_day = 20
+
+_cap_state = {}
+_ok = [g._sl_budget_ok(_cap_state, "sec1", _A, "T", "LEG1") for _ in range(3)]
+check("cap: the first two stops for a leg are allowed", _ok == [True, True, False])
+check("cap: the third is refused", _ok[2] is False)
+check("cap: the per-leg counter is recorded", _cap_state["sl_placed"]["sec1"] == 2)
+
+_day_state = {}
+class _B:
+    max_sl_per_leg = 99
+    max_sl_per_day = 3
+_res = [g._sl_budget_ok(_day_state, f"sec{i}", _B, "T", f"L{i}") for i in range(4)]
+check("cap: the daily ceiling is enforced across legs", _res == [True, True, True, False])
+check("cap: total counted is the daily limit", sum(_day_state["sl_placed"].values()) == 3)
+check("cap: a refused placement does not increment",
+      _day_state["sl_placed"].get("sec3", 0) == 0)
+check("sl_placed is a DAILY_KEY (resets each day)", "sl_placed" in g.DAILY_KEYS)
 
 # ---------- NEW: index-only scope (v22) ----------
 check("underlying_of: index symbol",
