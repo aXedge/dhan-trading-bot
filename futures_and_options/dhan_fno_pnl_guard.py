@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v20"
-GUARD_BUILD = "2026-11-05"
-GUARD_NOTES = "derive leg price when the payload omits it, so broker stops stop skipping silently"
+GUARD_VERSION = "v22"
+GUARD_BUILD = "2026-11-16"
+GUARD_NOTES = "index-only: stock options are excluded and left to stock_fno_manager.py"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -329,6 +329,37 @@ def _leg_mtm(position, source="auto"):
     return api_val if api_val is not None else (price_val or 0.0)
 
 
+INDEX_UNDERLYINGS = ("NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY",
+                     "NIFTYNXT50")
+
+
+def underlying_of(position):
+    """Underlying prefix from a Dhan tradingSymbol.
+
+    'NIFTY-Nov2026-23900-CE'      -> NIFTY
+    'BAJAJFINSV-Nov2026-1900-CE'  -> BAJAJFINSV
+    """
+    sym = str(position.get("tradingSymbol") or "")
+    return sym.split("-")[0].strip().upper()
+
+
+def is_index_option(position):
+    return underlying_of(position) in INDEX_UNDERLYINGS
+
+
+def _index_only_filter(positions, args):
+    """Drop stock-option legs when --index-only is set.
+
+    Stock options are managed by stock_fno_manager.py. This guard must not
+    place stops on them, flatten them, or EOD-close them. Used in both the
+    cycle fetch and the fresh re-fetch, so a stock structure can never be
+    resurrected mid-cycle.
+    """
+    if not getattr(args, "index_only", False):
+        return positions
+    return [p for p in positions if is_index_option(p)]
+
+
 def group_structures(positions, lot_size, mtm_source="price"):
     """
     Group live F&O positions into structures (underlying + expiry).
@@ -378,7 +409,10 @@ def market_open(now=None):
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
 DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen",
-              "no_price_seen")  # reset at start of day;
+              "no_price_seen", "sl_orders")  # reset at start of day;
+                                                  # sl_orders MUST persist within
+                                                  # the day or a new broker stop
+                                                  # is placed every single cycle
                                                   # struct_seen MUST persist
                                                   # within the day or [STRUCT]
                                                   # reprints every cycle
@@ -443,7 +477,7 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
              "struct_seen": {}, "mtm_diff_seen": {},
-             "no_price_seen": {}}
+             "no_price_seen": {}, "sl_orders": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -549,6 +583,13 @@ def sl_order_body(client_id, leg, trigger, buffer_pct):
 
 
 def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
+    """Place ONE resting stop per short leg and remember it.
+
+    The book is keyed on securityId and persisted in DAILY_KEYS. If that
+    persistence ever breaks again, this function will place a fresh stop every
+    cycle — on 13 Nov it placed 11 in 11 minutes, and a single trigger would
+    have fired all of them at once.
+    """
     """
     Place one resting stop-loss LIMIT order per short leg, at the price where
     the structure's MTM would hit the loss limit. Broker-side, so it protects
@@ -745,6 +786,8 @@ def refresh_structure(client, structure, args):
     resp = client.get_positions()
     positions = resp if isinstance(resp, list) else (
         resp.get("data", []) if isinstance(resp, dict) else [])
+
+    positions = _index_only_filter(positions, args)
     structures = group_structures(positions, args.lot_size,
                                      args.mtm_source)
     key = f"{structure['underlying']}|{structure['expiry']}"
@@ -761,6 +804,26 @@ def check_once(client, args, state):
     resp = client.get_positions()
     positions = resp if isinstance(resp, list) else (
         resp.get("data", []) if isinstance(resp, dict) else [])
+
+    _sample = positions[0] if positions else {}
+    if getattr(args, "index_only", False):
+        _all = len(positions)
+        positions = _index_only_filter(positions, args)
+        _dropped = _all - len(positions)
+        if _dropped:
+            _skip = state.setdefault("stock_skipped", {})
+            if _skip.get("n") != _dropped:
+                _skip["n"] = _dropped
+                print(f"[{ts}] index-only: ignoring {_dropped} non-index leg(s) "
+                      "— stock options belong to stock_fno_manager.py")
+            if not positions:
+                # every leg was dropped: either a stock-only book (fine) or the
+                # tradingSymbol format changed and we are managing NOTHING
+                print(f"[{ts}] WARNING: --index-only dropped ALL {_dropped} leg(s). "
+                      "If you hold index positions, the tradingSymbol format has "
+                      "probably changed and none of them are being managed. "
+                      f"Sample: {underlying_of(_sample)!r}")
+
     structures = group_structures(positions, args.lot_size,
                                      args.mtm_source)
 
@@ -775,7 +838,8 @@ def check_once(client, args, state):
             _cancel_sl_orders(client, state, key=k, dry_run=args.dry_run)
 
     if not structures:
-        print(f"[{ts}] No open F&O positions.")
+        print(f"[{ts}] No open F&O positions."
+              + (" (index only)" if getattr(args, "index_only", False) else ""))
         _cancel_sl_orders(client, state, dry_run=args.dry_run)
         write_hot_flag(args.state_file, [])   # flat -> fast poller idles
         return True
@@ -1055,6 +1119,9 @@ def apply_strategy(args):
         # arm the trailing floor and duplicate the broker-side ratchet.
         args.trail_arm = 0
         args.eod_close_all = True
+        # the agreed strategy is the index condor; stock options are a
+        # separate book with its own manager, so never touch them here
+        args.index_only = True
         if not getattr(args, "eod_exit", ""):
             args.eod_exit = "15:20"          # 10 minutes before the close
         if getattr(args, "profit_sl", 0) <= 0:
@@ -1080,6 +1147,9 @@ def main():
                                 f"(build {GUARD_BUILD}) — {GUARD_NOTES}")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --enforce: print orders, place nothing.")
+    parser.add_argument("--index-only", action="store_true",
+                        help="manage index options only; stock options are "
+                             "left to stock_fno_manager.py")
     parser.add_argument("--per-lot-profit", type=float,
                         default=DEFAULT_PER_LOT_PROFIT)
     parser.add_argument("--per-lot-loss", type=float,
@@ -1216,6 +1286,8 @@ def main():
     if getattr(args, "strategy_simple", False):
         _banner("  Strategy    : SIMPLE — price MTM + entry stop + ratchet "
                 f"to Rs.{args.avg_win_per_lot:,.0f}/lot + EOD close-all")
+        _banner("  Scope       : INDEX options only — stock options are "
+                "left to stock_fno_manager.py")
         if args.per_lot_profit <= 0:
             _banner("  Caps        : none — the ratchet is the only profit exit")
         else:
