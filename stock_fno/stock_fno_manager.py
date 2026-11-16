@@ -317,6 +317,26 @@ def _underlying_prices_one(date):
 # state / log
 # --------------------------------------------------------------------------
 
+def publish_holdings(condors, spreads, keys, path=None):
+    """Write the live counts for the 08:00 scan to read.
+
+    MUST run even when the book is flat. If it does not, the file keeps
+    whatever it said earlier today - so closing a condor would leave the scan
+    believing one is still open and suppress every candidate until midnight.
+    """
+    path = path or HOLDINGS_STATE
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump({"date": dt.date.today().isoformat(),
+                       "condors": condors, "spreads": spreads,
+                       "keys": sorted(keys)}, f, indent=2)
+        return True
+    except OSError as e:
+        print(f"[STATE] could not write {path}: {e}")
+        return False
+
+
 def load_state(path):
     if not os.path.exists(path):
         return {}
@@ -447,6 +467,18 @@ def selftest():
     check("a 4-leg straddle is not a condor", not is_condor([
         {"drvOptionType": "CE"}, {"drvOptionType": "PE"}]))
 
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _p = os.path.join(_td, "h.json")
+        check("publish_holdings writes the counts",
+              publish_holdings(1, 0, ["A|2026-12-29"], _p) is True)
+        _h = json.load(open(_p))
+        check("published condor count is right", _h["condors"] == 1)
+        check("published date is today", _h["date"] == dt.date.today().isoformat())
+        check("a flat book publishes zeros, not a stale count",
+              publish_holdings(0, 0, [], _p) is True
+              and json.load(open(_p))["condors"] == 0)
+
     check("dte_of counts calendar days",
           dte_of("2026-12-29", dt.date(2026, 12, 1)) == 28)
 
@@ -496,6 +528,8 @@ def main():
           f"{len(book)} stock-option structure(s)")
     if not book:
         print("no open stock option positions — nothing to manage")
+        publish_holdings(0, 0, [])
+        print(f"published holdings state: 0 condor(s), 0 spread(s)")
         return 0
 
     date = args.bhavcopy_date or dt.date.today().strftime("%Y%m%d")
@@ -583,13 +617,7 @@ def main():
 
     # publish the counts so the 08:00 scan enforces the holding rule without
     # anyone having to remember a flag
-    try:
-        with open(HOLDINGS_STATE, "w") as f:
-            json.dump({"date": dt.date.today().isoformat(),
-                       "condors": len(_condors), "spreads": _ns,
-                       "keys": sorted(book)}, f, indent=2)
-    except OSError as e:
-        print(f"[STATE] could not write {HOLDINGS_STATE}: {e}")
+    publish_holdings(len(_condors), _ns, book)
 
     if previews and (args.preview or args.execute):
         print(f"\n=== EXIT PREVIEW — {len(previews)} leg(s) ===")
