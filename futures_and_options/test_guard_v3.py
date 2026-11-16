@@ -194,7 +194,8 @@ check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "alerts": {}, "locked": [],
                                                  "peaks": {}, "struct_seen": {},
                                                  "mtm_diff_seen": {},
-                                                 "no_price_seen": {}})
+                                                 "no_price_seen": {},
+                                                 "sl_orders": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -587,6 +588,61 @@ class ClientNP(MockClient):
 
 out, _, _ = run({}, client=ClientNP())
 check("NO-PRICE warns instead of skipping silently", "[NO-PRICE]" in out)
+
+# ---------- NEW: sl_orders persistence (v21) ----------
+import datetime as _dt, tempfile as _tf
+_today = _dt.date.today().isoformat()
+with _tf.TemporaryDirectory() as _td:
+    _sp = os.path.join(_td, "s.json")
+    _st = {"date": _today, "alerts": {}, "locked": [], "peaks": {"K": 100.0},
+           "struct_seen": {}, "mtm_diff_seen": {}, "no_price_seen": {},
+           "sl_orders": {"K": {"12345": "oid-1"}}}
+    g.save_state(_sp, _st)
+    _back = g.load_state(_sp, _today)
+    check("sl_orders survives save/load within the day",
+          _back.get("sl_orders", {}).get("K", {}).get("12345") == "oid-1")
+    _back2 = g.load_state(_sp, "2099-01-01")
+    check("sl_orders resets on a new trading day (DAY orders die overnight)",
+          _back2.get("sl_orders") == {})
+
+check("sl_orders is a DAILY_KEY", "sl_orders" in g.DAILY_KEYS)
+check("fresh state carries an sl_orders book",
+      "sl_orders" in g.load_state("/nonexistent/state.json", _today))
+
+# ---------- NEW: index-only scope (v22) ----------
+check("underlying_of: index symbol",
+      g.underlying_of({"tradingSymbol": "NIFTY-Nov2026-23900-CE"}) == "NIFTY")
+check("underlying_of: stock symbol",
+      g.underlying_of({"tradingSymbol": "BAJAJFINSV-Nov2026-1900-CE"}) == "BAJAJFINSV")
+check("is_index_option: NIFTY", g.is_index_option({"tradingSymbol": "NIFTY-Nov2026-23900-CE"}))
+check("is_index_option: BANKNIFTY",
+      g.is_index_option({"tradingSymbol": "BANKNIFTY-Nov2026-58000-CE"}))
+check("is_index_option: a stock is not an index",
+      not g.is_index_option({"tradingSymbol": "RELIANCE-Nov2026-1400-CE"}))
+
+_STK = [{"tradingSymbol": "BAJAJFINSV-Nov2026-1900-CE", "securityId": "85142",
+         "netQty": -300, "costPrice": 40.0, "lastPrice": 55.0,
+         "exchangeSegment": "NSE_FNO", "drvExpiryDate": "2026-11-23",
+         "productType": "MARGIN", "unrealizedProfit": -4500.0}]
+
+
+class ClientStock(MockClient):
+    def get_positions(self):
+        return [] if self.filled else _STK
+
+
+out, _mc, _ = run({"index_only": True}, client=ClientStock())
+check("index-only: a stock-only book reads as flat",
+      "No open F&O positions. (index only)" in out)
+check("index-only: no [STRUCT] emitted for a stock leg", "[STRUCT]" not in out)
+out2, _mc2, _ = run({}, client=ClientStock())
+check("without the flag a stock leg is still managed", "[STRUCT]" in out2)
+check("strategy-simple implies index_only",
+      g.apply_strategy(type("A", (), {"strategy_simple": True, "mtm_source": "auto",
+                                      "sl_order": False, "trail_arm": 2000,
+                                      "eod_close_all": False, "eod_exit": "",
+                                      "profit_sl": 0, "avg_win_per_lot": 2000,
+                                      "per_lot_profit": 4500})()).index_only is True)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)
