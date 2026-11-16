@@ -197,7 +197,8 @@ check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "mtm_diff_seen": {},
                                                  "no_price_seen": {},
                                                  "sl_orders": {},
-                                                 "sl_placed": {}})
+                                                 "sl_placed": {},
+                                                 "started_logged": False})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -610,6 +611,19 @@ with _tf.TemporaryDirectory() as _td:
 check("sl_orders is a DAILY_KEY", "sl_orders" in g.DAILY_KEYS)
 check("fresh state carries an sl_orders book",
       "sl_orders" in g.load_state("/nonexistent/state.json", _today))
+
+# ---------- NEW: the audit's date anchor (v24) ----------
+import re as _re
+_AUDIT_ANCHOR = r"Started at\s+:\s+\d{4}-\d{2}-\d{2} "
+_out, _mc, _st = run({})
+check("quiet run emits the anchor trail_audit.py needs to parse anything",
+      _re.search(_AUDIT_ANCHOR, _out) is not None)
+check("the anchor is emitted once, not every cycle", _out.count("Started at") == 1)
+_out2, _mc2, _st2 = run({}, state=_st)
+check("the anchor does not repeat within the same day",
+      "Started at" not in _out2)
+check("started_logged is a DAILY_KEY so it resets each day",
+      "started_logged" in g.DAILY_KEYS)
 
 # ---------- NEW: stop-placement cap (v23) ----------
 class _A:

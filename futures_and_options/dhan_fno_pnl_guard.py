@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v23"
-GUARD_BUILD = "2026-11-16"
-GUARD_NOTES = "cap stop placements per leg and per day; 16-Nov placed 1,054 in one session"
+GUARD_VERSION = "v24"
+GUARD_BUILD = "2026-11-17"
+GUARD_NOTES = "emit the dated Started-at line under --quiet; the audit parses nothing without it"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -409,7 +409,8 @@ def market_open(now=None):
 # State (daily alert/lockout memory)
 # ---------------------------------------------------------------------------
 DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen",
-              "no_price_seen", "sl_orders", "sl_placed")  # reset at start of day;
+              "no_price_seen", "sl_orders", "sl_placed",
+              "started_logged")  # reset at start of day;
                                                   # sl_orders MUST persist within
                                                   # the day or a new broker stop
                                                   # is placed every single cycle
@@ -477,7 +478,8 @@ def hot_flag_active(state_path, stale_minutes=FAST_STALE_MINUTES):
 def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
              "struct_seen": {}, "mtm_diff_seen": {},
-             "no_price_seen": {}, "sl_orders": {}, "sl_placed": {}}
+             "no_price_seen": {}, "sl_orders": {}, "sl_placed": {},
+             "started_logged": False}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -830,6 +832,15 @@ def refresh_structure(client, structure, args):
 def check_once(client, args, state):
     ts = datetime.now(IST).strftime("%H:%M:%S")
     today = state["date"]
+
+    # trail_audit.py derives the day from a "Started at : YYYY-MM-DD" line and
+    # SKIPS every line until it sees one. That line lived only in the banner,
+    # which --quiet suppresses - so under cron the audit parsed nothing from
+    # 4-Nov onward. Emit it once per day, quietly or not.
+    if not state.get("started_logged"):
+        print(f"[{ts}] Started at : "
+              f"{datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
+        state["started_logged"] = True
 
     resp = client.get_positions()
     positions = resp if isinstance(resp, list) else (
