@@ -221,6 +221,7 @@ def _recent_sessions(date, back=5):
 
 
 DHAN_ORDERS_URL = "https://api.dhan.co/v2/orders"
+LIVE_ORDER_STATES = ("PENDING", "TRANSIT", "OPEN", "PART_TRADED")
 
 
 def _dhan_headers():
@@ -257,6 +258,25 @@ def exit_order_body(order, client_id):
     }
 
 
+def pending_security_ids(headers):
+    """securityIds that already have a live, unfilled order.
+
+    Returns a set, or None if the book could not be read. None means "unknown",
+    and the caller must NOT place - an unreadable order book is exactly when
+    stacking exits is most likely.
+    """
+    import requests
+    try:
+        r = requests.get(DHAN_ORDERS_URL, headers=headers, timeout=30)
+        j = r.json() if r.content else []
+        rows = j if isinstance(j, list) else j.get("data", [])
+    except Exception:
+        return None
+    return {str(o.get("securityId"))
+            for o in rows
+            if str(o.get("orderStatus", "")).upper() in LIVE_ORDER_STATES}
+
+
 def place_exit(orders, live):
     """Place each exit leg in sequence. Returns [(symbol, ok, detail)]."""
     import requests
@@ -264,8 +284,23 @@ def place_exit(orders, live):
         return [(o["tradingSymbol"], True, "dry-run") for o in orders]
     headers = _dhan_headers()
     client_id = headers["client-id"]
+
+    # never stack an exit on a leg that already has a live order. Without this,
+    # an unfilled limit order is re-placed every 15 minutes and the fills
+    # multiply the closing quantity.
+    live_ids = pending_security_ids(headers)
+    if live_ids is None:
+        print("  REFUSING to place: the order book could not be read, so a "
+              "duplicate exit cannot be ruled out. Retrying next cycle.")
+        return [("ALL", False, "order book unreadable")]
+    if live_ids:
+        print(f"  {len(live_ids)} leg(s) already have a live order - skipping them")
+
     results = []
     for o in orders:
+        if str(o["securityId"]) in live_ids:
+            results.append((o["tradingSymbol"], True, "skipped: already pending"))
+            continue
         body = exit_order_body(o, client_id)
         try:
             r = requests.post(DHAN_ORDERS_URL, json=body, headers=headers, timeout=30)
@@ -456,6 +491,9 @@ def selftest():
     check("exit body rounds the price", exit_order_body(
         {"tradingSymbol": "X", "securityId": "1", "transaction_type": "SELL",
          "quantity": 1, "price": 55.6789}, "c")["price"] == 55.68)
+    check("a live order state set is defined",
+          "PENDING" in LIVE_ORDER_STATES and "TRANSIT" in LIVE_ORDER_STATES)
+    check("a filled order is not a live state", "TRADED" not in LIVE_ORDER_STATES)
     check("dry-run placement touches nothing",
           place_exit([{"tradingSymbol": "X"}], live=False) == [("X", True, "dry-run")])
 
