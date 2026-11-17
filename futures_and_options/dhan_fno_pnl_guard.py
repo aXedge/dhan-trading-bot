@@ -117,9 +117,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v24"
+GUARD_VERSION = "v26"
 GUARD_BUILD = "2026-11-17"
-GUARD_NOTES = "emit the dated Started-at line under --quiet; the audit parses nothing without it"
+GUARD_NOTES = "read availabelBalance from the top level too; v25 balance guard never fired"
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -410,7 +410,7 @@ def market_open(now=None):
 # ---------------------------------------------------------------------------
 DAILY_KEYS = ("alerts", "locked", "struct_seen", "mtm_diff_seen",
               "no_price_seen", "sl_orders", "sl_placed",
-              "started_logged")  # reset at start of day;
+              "started_logged", "flatten_tries")  # reset at start of day;
                                                   # sl_orders MUST persist within
                                                   # the day or a new broker stop
                                                   # is placed every single cycle
@@ -479,7 +479,7 @@ def load_state(path, today):
     state = {"date": today, "alerts": {}, "locked": [], "peaks": {},
              "struct_seen": {}, "mtm_diff_seen": {},
              "no_price_seen": {}, "sl_orders": {}, "sl_placed": {},
-             "started_logged": False}
+             "started_logged": False, "flatten_tries": {}}
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -511,14 +511,23 @@ def save_state(path, state):
 # Exit orders
 # ---------------------------------------------------------------------------
 def exit_order_body(client_id, leg):
-    """Build a market order that flattens one position leg."""
+    """Build a market order that flattens one position leg.
+
+    Returns None when the leg carries no productType. Defaulting it to MARGIN
+    is what broke 16-Nov: the position was MIS, the exit was sent as MARGIN, so
+    it did not close the position - it opened a NEW long MARGIN position, and
+    the retry loop did that 22 times until the balance hit -Rs.3,30,367.
+    """
     net = int(leg.get("netQty", 0) or 0)
     side = "SELL" if net > 0 else "BUY"
+    product = leg.get("productType")
+    if not product:
+        return None
     body = {
         "dhanClientId": client_id,
         "transactionType": side,
         "exchangeSegment": leg.get("exchangeSegment"),
-        "productType": leg.get("productType", "MARGIN"),
+        "productType": product,
         "orderType": "MARKET",
         "validity": "DAY",
         "securityId": str(leg.get("securityId", "")),
@@ -570,7 +579,9 @@ def sl_order_body(client_id, leg, trigger, buffer_pct):
         "dhanClientId": client_id,
         "transactionType": "BUY",                 # closing a short leg
         "exchangeSegment": leg.get("exchangeSegment"),
-        "productType": leg.get("productType", "MARGIN"),
+        # no silent MARGIN default: a stop on an MIS position sent as MARGIN
+        # would never protect it
+        "productType": leg.get("productType") or "",
         "orderType": "STOP_LOSS",
         "validity": "DAY",
         "securityId": str(leg.get("securityId", "")),
@@ -763,18 +774,54 @@ def _pending_exit_orders(client):
     return pending
 
 
-def flatten_structure(client, structure, dry_run=False):
+def flatten_structure(client, structure, dry_run=False, state=None,
+                      max_tries=3, ts=""):
     """
     Place market exit orders for every open leg of a structure.
     Legs that already have a pending exit order in the book are skipped
     rather than stacked (duplicate-exit protection).
     Returns list of (leg_symbol, order_response_or_None_if_dry).
     """
+    if not dry_run and state is not None:
+        key = f"{structure.get('underlying')}|{structure.get('expiry')}"
+        tries = state.setdefault("flatten_tries", {})
+        n = tries.get(key, 0)
+        if n >= max_tries:
+            print(f"[{ts}] [FLATTEN-CAP] {key}: {n} flatten attempt(s) already "
+                  f"made today (limit {max_tries}) — refusing to place more. "
+                  "The position is NOT closed; investigate by hand.")
+            return []
+        tries[key] = n + 1
+
+    if not dry_run:
+        try:
+            fl = client.get_fund_limits()
+            # Dhan returns availabelBalance at the TOP level of /fundlimit;
+            # some wrappers nest it under "data". Accept both. Reading only
+            # one shape silently disables this guard - which is how v25 shipped.
+            _d = (fl.get("data") if isinstance(fl, dict)
+                  and isinstance(fl.get("data"), dict)
+                  else (fl if isinstance(fl, dict) else {}))
+            bal = float(_d.get("availabelBalance", 0) or 0)
+        except Exception:
+            bal = 0.0
+        if bal < 0:
+            print(f"[{ts}] [FLATTEN-REFUSED] available balance is Rs.{bal:,.2f} "
+                  "— refusing to place while the account is in debit. "
+                  "Top up or settle with the broker first.")
+            return []
+
     pending = set() if dry_run else _pending_exit_orders(client)
     results = []
     for leg in structure["legs"]:
         sym = leg.get("tradingSymbol", "?")
         body = exit_order_body(client.client_id, leg)
+        if body is None:
+            print(f"    [EXIT-REFUSED] {sym}: no productType on the leg — "
+                  "placing as MARGIN could open a new position instead of "
+                  "closing this one. Fix the payload; do not guess.")
+            results.append((sym, None))
+            continue
         if (str(leg.get("securityId", "")),
                 body["transactionType"]) in pending:
             print(f"    [SKIP] {sym}: exit order already pending")
@@ -1188,6 +1235,8 @@ def main():
                                 f"(build {GUARD_BUILD}) — {GUARD_NOTES}")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --enforce: print orders, place nothing.")
+    parser.add_argument("--max-flatten-tries", type=int, default=3,
+                        help="max flatten attempts per structure per day")
     parser.add_argument("--max-sl-per-leg", type=int, default=2,
                         help="max resting stops placed per leg per day")
     parser.add_argument("--max-sl-per-day", type=int, default=20,

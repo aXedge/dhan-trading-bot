@@ -198,7 +198,8 @@ check("state fresh when file missing", fresh == {"date": "2026-09-22",
                                                  "no_price_seen": {},
                                                  "sl_orders": {},
                                                  "sl_placed": {},
-                                                 "started_logged": False})
+                                                 "started_logged": False,
+                                                 "flatten_tries": {}})
 
 # ---------- 10. trailing stop (v3.1) ----------
 class MockClientP(MockClient):
@@ -611,6 +612,65 @@ with _tf.TemporaryDirectory() as _td:
 check("sl_orders is a DAILY_KEY", "sl_orders" in g.DAILY_KEYS)
 check("fresh state carries an sl_orders book",
       "sl_orders" in g.load_state("/nonexistent/state.json", _today))
+
+# ---------- NEW: the 16-Nov MARGIN catastrophe (v25) ----------
+_no_prod = {"tradingSymbol": "X", "securityId": "1", "netQty": -195,
+            "costPrice": 10.0, "lastPrice": 12.0}
+check("an exit with no productType is REFUSED, not defaulted to MARGIN",
+      g.exit_order_body("c", _no_prod) is None)
+check("an exit carries the leg's real productType",
+      g.exit_order_body("c", dict(_no_prod, productType="INTRADAY"))["productType"]
+      == "INTRADAY")
+check("a stop body carries the leg's real productType",
+      g.sl_order_body("c", dict(_no_prod, productType="INTRADAY"), 20.0, 2.0
+                      )["productType"] == "INTRADAY")
+check("a stop body with no productType is not silently MARGIN",
+      g.sl_order_body("c", _no_prod, 20.0, 2.0)["productType"] == "")
+
+
+class _Bal:
+    """Client whose account is in debit (Dhan's real shape: top level)."""
+    def __init__(self):
+        self.orders = []
+        self.filled = False
+    def get_fund_limits(self):
+        return {"availabelBalance": -330367.47, "utilisedAmount": 500000.0}
+
+
+class _BalNested(_Bal):
+    def get_fund_limits(self):
+        return {"data": {"availabelBalance": -1000.0}}
+    def get_order_list(self):
+        return []
+    def place_order(self, body):
+        self.orders.append(body)
+        return {"orderId": "X"}
+    def get_positions(self):
+        return []
+
+
+_st = {"flatten_tries": {}}
+_bc = _Bal()
+_struct = {"underlying": "NIFTY", "expiry": "2026-11-17",
+           "legs": [{"tradingSymbol": "N", "securityId": "9", "netQty": -195,
+                     "productType": "INTRADAY", "exchangeSegment": "NSE_FNO"}]}
+g.flatten_structure(_bc, _struct, dry_run=False, state=_st, max_tries=3, ts="T")
+check("a negative balance refuses to flatten (top-level shape)",
+      len(_bc.orders) == 0)
+_bn = _BalNested()
+g.flatten_structure(_bn, _struct, dry_run=False, state={"flatten_tries": {}},
+                    max_tries=3, ts="T")
+check("a negative balance refuses to flatten (nested shape too)",
+      len(_bn.orders) == 0)
+
+_st2 = {"flatten_tries": {}}
+_oc = MockClient()
+for _ in range(5):
+    g.flatten_structure(_oc, _struct, dry_run=False, state=_st2, max_tries=3, ts="T")
+check("flatten retries are capped at max_tries",
+      _st2["flatten_tries"]["NIFTY|2026-11-17"] == 3)
+check("the cap stops orders being placed", len(_oc.orders) <= 3)
+check("flatten_tries is a DAILY_KEY", "flatten_tries" in g.DAILY_KEYS)
 
 # ---------- NEW: the audit's date anchor (v24) ----------
 import re as _re
