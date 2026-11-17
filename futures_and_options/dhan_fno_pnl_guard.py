@@ -81,6 +81,11 @@ Authentication: src/auth.py (PIN + TOTP). Telegram alerts use
 TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from the environment (never hardcoded).
 """
 
+__SCRIPT_NAME = "dhan_fno_pnl_guard"
+__SCRIPT_VERSION = "v27"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "version banner convention; carries v26 fixes (productType, flatten cap, balance)"
+
 import argparse
 import json
 import os
@@ -117,9 +122,9 @@ DEFAULT_LOT_SIZE = 65  # NIFTY
 
 # --- version marker. Bump GUARD_VERSION on EVERY behavioural change so the
 # banner, --version, and verify_deploy.sh can all say which build is live.
-GUARD_VERSION = "v26"
-GUARD_BUILD = "2026-11-17"
-GUARD_NOTES = "read availabelBalance from the top level too; v25 balance guard never fired"
+GUARD_VERSION = __SCRIPT_VERSION
+GUARD_BUILD = __SCRIPT_BUILD
+GUARD_NOTES = __SCRIPT_NOTES
 
 IST = timezone(timedelta(hours=5, minutes=30))
 

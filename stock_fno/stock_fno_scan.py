@@ -15,6 +15,11 @@ Usage
   python stock_fno_scan.py --date 20261113 --top 10 --min-oi 20000
 """
 
+__SCRIPT_NAME = "stock_fno_scan"
+__SCRIPT_VERSION = "v2"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "shortlist to Telegram"
+
 import argparse
 import io
 import math
@@ -323,8 +328,32 @@ def selftest():
     return 0 if fail == 0 else 1
 
 
+def telegram_send(message):
+    """Post to Telegram when TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are set.
+
+    Same contract as the guard's sender: no credentials, no message, no error.
+    """
+    import os as _os
+    token = _os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat = _os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat:
+        return False
+    try:
+        import requests
+        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                          json={"chat_id": chat, "text": message,
+                                "parse_mode": "HTML"}, timeout=15)
+        return r.status_code == 200
+    except Exception as e:
+        print(f"[TELEGRAM] send failed: {str(e)[:80]}")
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--version", action="version",
+                       version=f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+                               f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
     ap.add_argument("--date", default="", help="YYYYMMDD; blank = newest published")
     ap.add_argument("--min-oi", type=int, default=20000)
     ap.add_argument("--max-delta", type=float, default=0.40)
@@ -346,6 +375,8 @@ def main():
                     help="iron condors already open (overridden by --holdings-state)")
     ap.add_argument("--open-spreads", type=int, default=0,
                     help="single spreads already open")
+    ap.add_argument("--no-telegram", action="store_true",
+                    help="do not post the shortlist to Telegram")
     ap.add_argument("--capital", type=float, default=0.0,
                     help="stock-F&O capital in rupees; enables lot sizing")
     ap.add_argument("--risk-pct", default="1,2",
@@ -520,6 +551,28 @@ def main():
               "margin for a hedged spread is the binding constraint and must be "
               "checked with margin_calculator before ordering.")
     print("\nPrices are the previous session's settlement, not live. Nothing has been ordered.")
+
+    if not args.no_telegram:
+        lines = [f"<b>Stock F&amp;O scan</b> — session {used}",
+                 f"holdings: {args.open_condors} condor, {args.open_spreads} spread "
+                 "(1 condor OR 2 spreads)"]
+        if allrows and len(d):
+            for n, (_, r) in enumerate(d.iterrows(), 1):
+                lines.append("")
+                lines.append(f"<b>{n}. {r['sym']} {r['legs']}</b>")
+                lines.append(f"credit Rs.{r['credit']:,.0f} | max loss "
+                             f"Rs.{r['max_loss']:,.0f} | {r['pct']:.0f}% of width")
+                lines.append(f"delta {r['delta']:.2f} | OI {r['thin_oi']:,} | "
+                             f"{r['steps']} step(s)")
+                if args.capital > 0:
+                    lines.append(f"{r['lots_min']}-{r['lots_max']} lots -> risk "
+                                 f"Rs.{r['risk_at_min']:,.0f}-{r['risk_at_max']:,.0f}")
+        else:
+            lines.append("nothing to propose")
+        lines.append("")
+        lines.append("Settlement prices, not live. Margin not computed.")
+        if telegram_send("\n".join(lines)):
+            print("[TELEGRAM] shortlist sent")
     return 0
 
 

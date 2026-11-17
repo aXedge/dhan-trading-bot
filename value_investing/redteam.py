@@ -32,6 +32,11 @@ Usage
   python redteam.py --selftest
 """
 
+__SCRIPT_NAME = "redteam"
+__SCRIPT_VERSION = "v1"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "initial release"
+
 import argparse
 import datetime as dt
 import os
@@ -234,6 +239,9 @@ def selftest():
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--version", action="version",
+                       version=f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+                               f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
     ap.add_argument("--protocol", action="store_true")
     ap.add_argument("--ticker", default="")
     ap.add_argument("--holdings", default="")

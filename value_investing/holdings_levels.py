@@ -30,6 +30,11 @@ The holdings CSV needs a header: symbol,qty,avg_price  (qty/avg optional).
 Symbols are NSE tickers without the .NS suffix.
 """
 
+__SCRIPT_NAME = "holdings_levels"
+__SCRIPT_VERSION = "v1"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "initial release"
+
 import argparse
 import csv
 import os
@@ -834,6 +839,9 @@ def selftest():
 
 def main():
     ap = argparse.ArgumentParser(description="Evening level-confluence report for equity holdings.")
+    ap.add_argument("--version", action="version",
+                       version=f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+                               f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
     ap.add_argument("--holdings", default=DEFAULT_HOLDINGS)
     ap.add_argument("--report", default=DEFAULT_REPORT)
     ap.add_argument("--near", type=float, default=None,

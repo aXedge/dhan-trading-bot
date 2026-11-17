@@ -24,6 +24,11 @@ Usage
   python stock_fno_manager.py --selftest
 """
 
+__SCRIPT_NAME = "stock_fno_manager"
+__SCRIPT_VERSION = "v2"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "alerts on actionable verdicts"
+
 import argparse
 import csv
 import datetime as dt
@@ -528,12 +533,37 @@ def selftest():
 # main
 # --------------------------------------------------------------------------
 
+def telegram_send(message):
+    """Post to Telegram when TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are set.
+
+    Same contract as the guard's sender: no credentials, no message, no error.
+    """
+    import os as _os
+    token = _os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat = _os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat:
+        return False
+    try:
+        import requests
+        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                          json={"chat_id": chat, "text": message,
+                                "parse_mode": "HTML"}, timeout=15)
+        return r.status_code == 200
+    except Exception as e:
+        print(f"[TELEGRAM] send failed: {str(e)[:80]}")
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--version", action="version",
+                       version=f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+                               f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
     ap.add_argument("--positions", default=DEFAULT_POSITIONS)
     ap.add_argument("--state", default=DEFAULT_STATE)
     ap.add_argument("--log", default=DEFAULT_LOG)
     ap.add_argument("--from-dhan", action="store_true")
+    ap.add_argument("--no-telegram", action="store_true")
     ap.add_argument("--max-condors", type=int, default=1)
     ap.add_argument("--max-spreads", type=int, default=2)
     ap.add_argument("--bhavcopy-date", default="", help="YYYYMMDD for underlying prices")
@@ -673,6 +703,22 @@ def main():
     elif previews:
         print(f"\n{len(previews)} exit leg(s) would be placed — re-run with "
               "--preview to see them.")
+
+    # only alert when there is something to act on - 26 "nothing to manage"
+    # messages a day is noise, not monitoring
+    _act = [r for r in rows if r["verdict"] in
+            ("TAKE-PROFIT", "EXIT-DTE", "ROLL-NOW", "EXIT-NOW", "ADJUST",
+             "UNKNOWN", "CHECK")]
+    if _act and not args.no_telegram:
+        lines = ["<b>Stock F&amp;O — action needed</b>"]
+        for r in _act:
+            lines.append("")
+            lines.append(f"<b>{r['key']}</b>")
+            lines.append(f"{r['verdict']}: {r['reason']}")
+            lines.append(f"credit Rs.{r['credit']:,.0f} | captured {r['pct']:.0f}% "
+                         f"| {r['dte']}d")
+        if telegram_send("\n".join(lines)):
+            print("[TELEGRAM] alert sent")
 
     print(f"\nlogged to {args.log}. Report-only unless --preview/--execute.")
     return 0

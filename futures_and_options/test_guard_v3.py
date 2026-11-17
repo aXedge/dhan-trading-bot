@@ -1,4 +1,15 @@
 """Offline tests for dhan_fno_pnl_guard.py v3 (no network)."""
+
+__SCRIPT_NAME = "test_guard_v3"
+__SCRIPT_VERSION = "v1"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "initial release"
+
+import sys as _sys
+if "--version" in _sys.argv:
+    print(f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+          f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
+    _sys.exit(0)
 import importlib.util
 import io
 import os
@@ -674,6 +685,8 @@ check("flatten_tries is a DAILY_KEY", "flatten_tries" in g.DAILY_KEYS)
 
 # ---------- NEW: the audit's date anchor (v24) ----------
 import re as _re
+
+
 _AUDIT_ANCHOR = r"Started at\s+:\s+\d{4}-\d{2}-\d{2} "
 _out, _mc, _st = run({})
 check("quiet run emits the anchor trail_audit.py needs to parse anything",

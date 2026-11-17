@@ -24,6 +24,11 @@ Usage
   python value_rank.py --selftest
 """
 
+__SCRIPT_NAME = "value_rank"
+__SCRIPT_VERSION = "v1"
+__SCRIPT_BUILD = "2026-11-17"
+__SCRIPT_NOTES = "initial release"
+
 import argparse
 import os
 import sys
@@ -424,6 +429,9 @@ def selftest():
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--version", action="version",
+                       version=f"{__SCRIPT_NAME} {__SCRIPT_VERSION} "
+                               f"(build {__SCRIPT_BUILD}) — {__SCRIPT_NOTES}")
     ap.add_argument("--holdings", default=os.path.join(HERE, "holdings.csv"))
     ap.add_argument("--symbols", default="")
     ap.add_argument("--min-levels", type=int, default=3)
