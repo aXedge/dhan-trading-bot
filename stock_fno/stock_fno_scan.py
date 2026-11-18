@@ -16,9 +16,9 @@ Usage
 """
 
 __SCRIPT_NAME = "stock_fno_scan"
-__SCRIPT_VERSION = "v2"
+__SCRIPT_VERSION = "v5"
 __SCRIPT_BUILD = "2026-11-17"
-__SCRIPT_NOTES = "shortlist to Telegram"
+__SCRIPT_NOTES = "condor break-evens use the combined credit"
 
 import argparse
 import io
@@ -206,6 +206,12 @@ def scan_name(c, min_oi, max_delta, min_credit_pct, allowed_steps=(1, 2),
             "pct": pct, "delta": delta, "thin_oi": thin, "lot": lot,
             "score": pct / 100.0 * (1 - delta),
             "short_iv": short.get("iv"),
+            "pop": (1 - delta) * 100,          # replaced below with the correct value
+            "short_strike": short["strike"],
+            "be_lo": (short["strike"] - credit) if short["kind"] == "PE" else None,
+            "be_hi": (short["strike"] + credit) if short["kind"] == "CE" else None,
+            "iv": short.get("iv") or 0.0,
+            "rr": credit / (width - credit) if width > credit else 0.0,
             "steps": steps,
             "width_rs": width,
             "session_date": c.get("asof", ""),
@@ -270,11 +276,67 @@ def scan_name(c, min_oi, max_delta, min_credit_pct, allowed_steps=(1, 2),
                 "thin_oi": min(p["thin_oi"], q["thin_oi"]), "lot": lot,
                 "steps": max(p.get("steps", 0), q.get("steps", 0)),
                 "width_rs": width,
+                # a condor loses if EITHER side is breached, so the
+                # probabilities add rather than the best side winning
+                "pop": (1 - min(0.99, p["delta"] + q["delta"])) * 100,
+                # BUG FIX: a condor's break-evens sit at short strike minus the
+                # TOTAL credit, not minus one wing's credit. Using each wing's
+                # own credit narrowed the band by 12 points a side on a 20-point
+                # condor, understated POP, and made positive-EV condors look
+                # negative. Verified against a hand calculation on 18-Nov.
+                "short_strike_lo": p.get("short_strike"),
+                "short_strike_hi": q.get("short_strike"),
+                "be_lo": (p["short_strike"] - credit / lot)
+                          if p.get("short_strike") else None,
+                "be_hi": (q["short_strike"] + credit / lot)
+                          if q.get("short_strike") else None,
+                "iv": ((p.get("iv") or 0) + (q.get("iv") or 0)) / 2,
+                "rr": (credit / ml) if ml > 0 else 0.0,
                 "session_date": c.get("asof", ""),
                 "source": "NSE FO bhavcopy (settlement)",
                 "score": (credit / width) * (1 - max(p["delta"], q["delta"]))
                 if width else 0,
             })
+    # --- probability of profit, done properly -------------------------------
+    # You profit anywhere between the BREAK-EVENS, not just between the short
+    # strikes. Using 1-(sum of deltas) understated POP by ~8 points on a
+    # 20-point-wing condor and made positive-expectation trades look negative.
+    F, T = c["forward"], c["T"]
+
+    def _phi(x):
+        return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+    def _pop_between(lo, hi, sig):
+        if not (lo and hi and sig > 0 and F > 0):
+            return None
+        sd = sig * math.sqrt(T)
+        if sd <= 0:
+            return None
+        dlo = (math.log(lo / F) + 0.5 * sd * sd) / sd
+        dhi = (math.log(hi / F) + 0.5 * sd * sd) / sd
+        return _phi(dhi) - _phi(dlo)
+
+    def _pop_below(be, sig):
+        if not (be and sig > 0 and F > 0):
+            return None
+        sd = sig * math.sqrt(T)
+        d = (math.log(be / F) + 0.5 * sd * sd) / sd
+        return 1.0 - _phi(d)
+
+    for r in out:
+        sig = r.get("iv") or 0.0
+        lo, hi = r.get("be_lo"), r.get("be_hi")
+        if lo and hi:
+            p = _pop_between(lo, hi, sig)
+        elif hi:
+            p = _pop_below(hi, sig)
+        elif lo:
+            p = 1.0 - (_pop_below(lo, sig) or 0.0)
+        else:
+            p = None
+        if p is not None:
+            r["pop"] = p * 100.0
+            r["pop_method"] = "break-even"
     return out, rejected
 
 
@@ -377,6 +439,10 @@ def main():
                     help="single spreads already open")
     ap.add_argument("--no-telegram", action="store_true",
                     help="do not post the shortlist to Telegram")
+    ap.add_argument("--min-ev", type=float, default=0.0,
+                    help="minimum expected profit per lot; 0 keeps only positive-EV trades")
+    ap.add_argument("--min-profit", type=float, default=3000.0,
+                    help="minimum max-profit per position (credit x lots_min)")
     ap.add_argument("--capital", type=float, default=0.0,
                     help="stock-F&O capital in rupees; enables lot sizing")
     ap.add_argument("--risk-pct", default="1,2",
@@ -454,7 +520,39 @@ def main():
               f"forward {c['forward']:,.2f}  lot {c['lot']}")
 
     if allrows:
-        d = pd.DataFrame(allrows).sort_values("score", ascending=False)
+        d = pd.DataFrame(allrows)
+        # priority: most probable profit first, then the best risk-reward.
+        # credit/width is kept only as the 20% gate - it must not rank, because
+        # it rewards high-delta shorts, which are the ones most likely to lose.
+        d = d.sort_values(["pop", "rr"], ascending=[False, False])
+
+        # profit floor: a 69%-probability trade that pays Rs.1,400 is not worth
+        # holding. Applied to the position, not the lot, so a 4-lot structure is
+        # judged on what it would actually earn.
+        if args.capital > 0:
+            import math as _m
+            _lo = float(str(args.risk_pct).split(",")[0]) / 100.0
+            _lots = [max(1, _m.ceil(args.capital * _lo / ml)) if ml > 0 else 1
+                     for ml in d["max_loss"]]
+            d["profit_at_min"] = [c * l for c, l in zip(d["credit"], _lots)]
+            d["_profit_at_min_lots"] = d["profit_at_min"]
+            # expected profit at that size - the "likely" number, not the max
+            d["ev_at_min"] = [(p / 100.0) * c * l - (1 - p / 100.0) * ml * l
+                              for p, c, l, ml in zip(d["pop"], d["credit"], _lots,
+                                                     d["max_loss"])]
+            _before = len(d)
+            d = d[d["_profit_at_min_lots"] >= args.min_profit]
+            _ev = [(r["pop"] / 100.0) * r["credit"] - (1 - r["pop"] / 100.0) * r["max_loss"]
+                   for _, r in d.iterrows()]
+            d = d[[e > args.min_ev for e in _ev]]
+            print(f"EV GATE: expected profit > Rs.{args.min_ev:,.0f}/lot - {len(d)} left")
+            print(f"\nPROFIT FLOOR: max profit >= Rs.{args.min_profit:,.0f} per position "
+                  f"- {len(d)} of {_before} survivors clear it")
+        else:
+            _before = len(d)
+            d = d[d["credit"] >= args.min_profit]
+            print(f"\nPROFIT FLOOR: credit >= Rs.{args.min_profit:,.0f}/lot "
+                  f"- {len(d)} of {_before} survivors clear it")
 
         # --- HOLDING LIMITS --------------------------------------------------
         # At most 1 iron condor, OR at most 2 single spreads, never a mix.
@@ -501,30 +599,32 @@ def main():
             d["risk_at_min"] = ml_lo
             d["risk_at_max"] = ml_hi
             d["oversized"] = [not f for f in fits]
-        print(f"\n=== SHOWING {len(d)} OF {len(allrows)} BY credit/width x (1-delta) ===")
+        print(f"\n=== SHOWING {len(d)} OF {len(allrows)} "
+              f"BY probability of profit, then risk-reward ===")
         if args.capital > 0:
             print(f"capital Rs.{args.capital:,.0f} | per-position band "
                   f"{args.risk_pct}% = Rs.{args.capital*lo_p:,.0f}-"
                   f"Rs.{args.capital*hi_p:,.0f} | total ceiling "
                   f"{args.total_risk_pct:.0f}% = Rs.{budget:,.0f}")
-            print(f"{'#':>2s} {'sym':11s} {'legs':30s} {'maxloss':>9s} "
-                  f"{'lots':>7s} {'risk':>10s} {'cr/w':>5s} {'delta':>5s} "
-                  f"{'minOI':>9s}")
+            print(f"{'#':>2s} {'sym':11s} {'legs':26s} {'POP':>6s} {'lots':>5s} "
+                  f"{'maxprofit':>10s} {'exp.profit':>11s} {'maxloss':>9s} "
+                  f"{'R:R':>5s} {'cr/w':>5s} {'minOI':>9s}")
         else:
             print(f"{'#':>2s} {'sym':11s} {'structure':10s} {'legs':30s} {'credit':>9s} "
                   f"{'maxloss':>9s} {'cr/w':>5s} {'delta':>5s} {'minOI':>9s}")
         for n, (_, r) in enumerate(d.head(args.top).iterrows(), 1):
             if args.capital > 0:
-                print(f"{n:>2d} {r['sym']:11s} {r['legs']:30s} "
-                      f"{r['max_loss']:>9,.0f} "
-                      f"{r['lots_min']:>3d}-{r['lots_max']:<3d} "
-                      f"{r['risk_at_min']:>5,.0f}-{r['risk_at_max']:<5,.0f} "
-                      f"{r['pct']:>4.0f}% {r['delta']:>5.2f} {r['thin_oi']:>9,}"
+                print(f"{n:>2d} {r['sym']:11s} {r['legs']:26s} "
+                      f"{r['pop']:>5.1f}% {r['lots_min']:>5d} "
+                      f"{r['profit_at_min']:>10,.0f} {r['ev_at_min']:>+11,.0f} "
+                      f"{r['max_loss']*r['lots_min']:>9,.0f} {r['rr']:>5.2f} "
+                      f"{r['pct']:>4.0f}% {r['thin_oi']:>9,}"
                       + ("  OVERSIZED" if r["oversized"] else ""))
             else:
-                print(f"{n:>2d} {r['sym']:11s} {r['struct']:10s} {r['legs']:30s} "
-                      f"{r['credit']:>9,.0f} {r['max_loss']:>9,.0f} {r['pct']:>4.0f}% "
-                      f"{r['delta']:>5.2f} {r['thin_oi']:>9,}")
+                print(f"{n:>2d} {r['sym']:11s} {r['legs']:28s} "
+                      f"{r['pop']:>5.1f}% {r['credit']:>10,.0f} "
+                      f"{r['max_loss']:>9,.0f} {r['rr']:>5.2f} {r['pct']:>4.0f}% "
+                      f"{'':>5s} {r['thin_oi']:>9,}")
         d.to_csv("stock_fno_candidates.csv", index=False)
         print(f"\nall survivors: stock_fno_candidates.csv ({len(d)} rows)")
 
