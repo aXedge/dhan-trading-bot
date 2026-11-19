@@ -666,6 +666,24 @@ _struct = {"underlying": "NIFTY", "expiry": "2026-11-17",
            "legs": [{"tradingSymbol": "N", "securityId": "9", "netQty": -195,
                      "productType": "INTRADAY", "exchangeSegment": "NSE_FNO"}]}
 g.flatten_structure(_bc, _struct, dry_run=False, state=_st, max_tries=3, ts="T")
+# the durable stop record: without it "did the stop help?" is unanswerable
+import tempfile as _tf, os as _os, csv as _csv
+_tmp = _os.path.join(_tf.mkdtemp(), "sl_events.csv")
+_orig = g.SL_EVENTS_PATH
+g.SL_EVENTS_PATH = _tmp
+g._sl_event("NIFTY-NOV|2026-11-23", "NIFTY-25300-CE", "64456", 88.5, 87.0,
+            "ORD123", "placed", "10:05:01")
+g._sl_event("NIFTY-NOV|2026-11-23", "NIFTY-25300-CE", "64456", None, None,
+            "ORD123", "cancelled", "cancel")
+with open(_tmp) as _f:
+    _rows = list(_csv.DictReader(_f))
+check("stop events are written to a durable CSV", len(_rows) == 2)
+check("the CSV records the trigger and the order id",
+      _rows[0]["trigger"] == "88.5" and _rows[0]["orderId"] == "ORD123")
+check("the CSV records the cancellation",
+      _rows[1]["status"] == "cancelled")
+g.SL_EVENTS_PATH = _orig
+
 check("a negative balance refuses to flatten (top-level shape)",
       len(_bc.orders) == 0)
 _bn = _BalNested()

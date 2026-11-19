@@ -82,9 +82,9 @@ TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from the environment (never hardcoded).
 """
 
 __SCRIPT_NAME = "dhan_fno_pnl_guard"
-__SCRIPT_VERSION = "v28"
+__SCRIPT_VERSION = "v29"
 __SCRIPT_BUILD = "2026-11-17"
-__SCRIPT_NOTES = "expiry key normalised; Dhan sometimes adds a timestamp"
+__SCRIPT_NOTES = "durable record of every stop placement and outcome"
 
 import argparse
 import json
@@ -627,6 +627,44 @@ def _sl_budget_ok(state, sec, args, ts, label):
     return True
 
 
+SL_EVENTS_PATH = "data/sl_events.csv"
+
+
+def _sl_event(key, symbol, sec, trigger, limit_px, order_id, status, ts):
+    """Append one row per stop event to a durable CSV.
+
+    Without this there is NO record of what a stop did. The guard log rotates,
+    /v2/orders is day-scoped, and the trade book only holds fills - so a stop
+    that was placed and cancelled at the flatten leaves a trace nowhere, and
+    "did the stop help?" becomes unanswerable the next day. That is the same
+    gap the trail audit had before it started writing episodes.
+    """
+    import csv
+    import datetime as _dt
+    row = {
+        "date": _dt.date.today().isoformat(),
+        "ts": ts,
+        "structure": key,
+        "symbol": symbol,
+        "securityId": sec,
+        "trigger": trigger,
+        "limit": limit_px,
+        "orderId": order_id,
+        "status": status,
+    }
+    try:
+        new = not os.path.exists(SL_EVENTS_PATH)
+        if new:
+            os.makedirs(os.path.dirname(SL_EVENTS_PATH) or ".", exist_ok=True)
+        with open(SL_EVENTS_PATH, "a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(row.keys()))
+            if new:
+                w.writeheader()
+            w.writerow(row)
+    except Exception as e:                       # never break trading for a log
+        print(f"  [SL-EVENT] could not write {SL_EVENTS_PATH}: {str(e)[:60]}")
+
+
 def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
     """Place ONE resting stop per short leg and remember it.
 
@@ -653,6 +691,8 @@ def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
             continue
         if not _sl_budget_ok(state, sec, args, ts, leg.get("tradingSymbol", "?")):
             book[sec] = "capped"
+            _sl_event(key, leg.get("tradingSymbol", "?"), sec, trigger, None,
+                      None, "capped", ts)
             continue
         body = sl_order_body(client.client_id, leg, trigger, args.sl_buffer_pct)
         if args.dry_run:
@@ -664,6 +704,8 @@ def _ensure_sl_orders(client, args, state, key, g, loss_limit, ts):
         resp = client.place_order(body)
         ok = isinstance(resp, dict) and "orderId" in resp
         book[sec] = str(resp.get("orderId")) if ok else "failed"
+        _sl_event(key, leg.get("tradingSymbol", "?"), sec, trigger,
+                  body["price"], book[sec], "placed" if ok else "failed", ts)
         print(f"[{ts}]   [SL] {leg.get('tradingSymbol', '?')}: resting stop "
               f"trig Rs.{trigger} limit Rs.{body['price']} -> "
               + (f"orderId {book[sec]}" if ok
@@ -749,6 +791,7 @@ def _cancel_sl_orders(client, state, key=None, dry_run=False):
             else:
                 try:
                     client.cancel_order(oid)
+                    _sl_event(k, "", sec, None, None, oid, "cancelled", "cancel")
                     print(f"  [SL] cancelled resting stop {oid}")
                 except Exception as e:  # noqa: BLE001
                     print(f"  [SL] cancel failed for {oid}: {str(e)[:80]}")
