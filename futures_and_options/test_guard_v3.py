@@ -37,6 +37,12 @@ g = importlib.util.module_from_spec(spec)
 sys.modules["guard"] = g
 spec.loader.exec_module(g)
 
+# tests must never write into the repo: _ensure_sl_orders appends to
+# SL_EVENTS_PATH, so point it at a throwaway file before any test runs
+import tempfile as _tmpmod
+g.SL_EVENTS_PATH = os.path.join(_tmpmod.mkdtemp(prefix="slevents_"),
+                                "sl_events.csv")
+
 # tests simulate market hours (guard refuses to place orders otherwise)
 g.market_open = lambda now=None: True
 

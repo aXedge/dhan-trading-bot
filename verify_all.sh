@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 __SCRIPT_NAME="verify_all"
-__SCRIPT_VERSION="v4"
+__SCRIPT_VERSION="v5"
 __SCRIPT_BUILD="2026-11-17"
-__SCRIPT_NOTES="reads the rotated log when the live one is empty"
+__SCRIPT_NOTES="test counts read from the expected file, not hardcoded"
 #
 # verify_all.sh — one command that checks everything, so nothing has to be
 # hand-cross-checked. Prints a PASS/FAIL table; exits non-zero on any failure.
@@ -54,7 +54,7 @@ if [ ! -f "$EXP" ]; then
     warn "no $EXP — skipping checksum checks"
 else
     while IFS=$'\t' read -r path want_ver want_md5; do
-        case "$path" in ''|\#*) continue;; esac
+        case "$path" in ''|\#*|TESTS) continue;; esac
         if [ ! -f "$path" ]; then bad "$path MISSING"; continue; fi
         got_ver=$(grep -m1 '^__SCRIPT_VERSION' "$path" 2>/dev/null | cut -d'"' -f2)
         got_md5=$(md5sum "$path" | cut -d' ' -f1)
@@ -70,8 +70,15 @@ fi
 
 # ---------------------------------------------------------------- selftests
 head_ "SELFTESTS"
-run_tests() {   # name, command, expected-count
-    local name="$1" cmd="$2" want="$3" out n
+expected_tests() {   # name -> count from verify_expected.txt, blank if absent
+    [ -f "$EXP" ] || { echo ""; return; }
+    grep -E "^TESTS[[:space:]]+$1[[:space:]]" "$EXP" 2>/dev/null | awk '{print $NF}' | head -1
+}
+
+run_tests() {   # name, command, fallback-count
+    local name="$1" cmd="$2" want out n
+    want=$(expected_tests "$1")
+    [ -z "$want" ] && want="$3"
     out=$(eval "$cmd" 2>&1)
     n=$(printf '%s\n' "$out" | grep -oE '[0-9]+ passed' | tail -1 | cut -d' ' -f1)
     if [ -z "$n" ]; then
@@ -84,11 +91,11 @@ run_tests() {   # name, command, expected-count
         printf '%s\n' "$out" | grep -E '^FAIL' | head -3 | sed 's/^/        | /'
     fi
 }
-run_tests "guard"      "$PY futures_and_options/test_guard_v3.py"       "127"
-run_tests "stock scan" "$PY stock_fno/stock_fno_scan.py --selftest"     "16"
-run_tests "stock mgr"  "$PY stock_fno/stock_fno_manager.py --selftest"  "34"
-run_tests "value_rank" "$PY value_investing/value_rank.py --selftest"   "17"
-run_tests "redteam"    "$PY value_investing/redteam.py --selftest"      "14"
+run_tests "guard"      "$PY futures_and_options/test_guard_v3.py"       ""
+run_tests "stock scan" "$PY stock_fno/stock_fno_scan.py --selftest"     ""
+run_tests "stock mgr"  "$PY stock_fno/stock_fno_manager.py --selftest"  ""
+run_tests "value_rank" "$PY value_investing/value_rank.py --selftest"   ""
+run_tests "redteam"    "$PY value_investing/redteam.py --selftest"      ""
 
 # ---------------------------------------------------------------- cron
 head_ "CRON"
@@ -184,7 +191,10 @@ GLOG=logs/fno_guard.log
 if [ ! -f "$GLOG" ]; then
     bad "logs/fno_guard.log missing"
 else
-    _live=$(grep -c '' "$GLOG" 2>/dev/null || echo 0)
+    # grep -c prints 0 AND exits 1 on no match; "|| echo 0" appended a second
+    # zero and produced "0\n0", breaking every [ ] test downstream
+    _live=$(grep -c '' "$GLOG" 2>/dev/null) || true
+    _live=${_live:-0}
     if [ "$_live" -eq 0 ]; then
         _rot=$(ls -1t logs/fno_guard.log-* 2>/dev/null | head -1)
         if [ -n "$_rot" ]; then
