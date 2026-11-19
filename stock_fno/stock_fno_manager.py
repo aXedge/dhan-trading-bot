@@ -25,9 +25,9 @@ Usage
 """
 
 __SCRIPT_NAME = "stock_fno_manager"
-__SCRIPT_VERSION = "v4"
+__SCRIPT_VERSION = "v5"
 __SCRIPT_BUILD = "2026-11-17"
-__SCRIPT_NOTES = "Dhan sends PUT/CALL, not PE/CE"
+__SCRIPT_NOTES = "settlement fallback when lastPrice is 0 after hours"
 
 import argparse
 import csv
@@ -117,22 +117,61 @@ def group_stock_options(positions):
     return out
 
 
-def structure_economics(legs):
+def leg_price(p, date=None):
+    """(price, source) for one leg.
+
+    Dhan returns lastPrice = 0 outside market hours, so every leg priced at
+    zero: the close cost became 0, "captured" read 100%, and a false
+    TAKE-PROFIT was one step away. Fall back to the previous session's
+    settlement from the bhavcopy and LABEL it, so a stale price can never be
+    mistaken for a live one.
+    """
+    px = _f(p.get("lastPrice"))
+    if px > 0:
+        return px, "live"
+    if not date:
+        return 0.0, "missing"
+    df = _bhavcopy(date)
+    if df is None:
+        return 0.0, "missing"
+    try:
+        sym = underlying_of(p)
+        exp = str(p.get("drvExpiryDate") or "").strip().split(" ")[0][:10]
+        K = _f(p.get("drvStrikePrice"))
+        kind = opt_kind(p.get("drvOptionType"))
+        row = df[(df.TckrSymb == sym) & (df.FinInstrmTp == "STO")
+                 & (df.XpryDt == exp) & (df.OptnTp == kind) & (df.StrkPric == K)]
+        if not len(row):
+            return 0.0, "missing"
+        r0 = row.iloc[0]
+        v = float(r0.SttlmPric) if r0.SttlmPric > 0 else float(r0.ClsPric)
+        return (v, "settlement") if v > 0 else (0.0, "missing")
+    except Exception:
+        return 0.0, "missing"
+
+
+def structure_economics(legs, date=None):
     """Credit received at entry, and the current cost to close."""
     credit = 0.0
     close_cost = 0.0
     for p in legs:
         q = _i(p.get("netQty"))
+        px, _src = leg_price(p, date)
         if q < 0:                                  # short leg: sold to open
             credit += abs(q) * _f(p.get("sellAvg"))
-            close_cost += abs(q) * _f(p.get("lastPrice"))
+            close_cost += abs(q) * px
         elif q > 0:                                # long leg: bought to open
             credit -= q * _f(p.get("buyAvg"))
-            close_cost -= q * _f(p.get("lastPrice"))
+            close_cost -= q * px
     return credit, close_cost
 
 
-def legs_priced(legs):
+def all_live(legs):
+    """True only when EVERY leg has a live price - required before ordering."""
+    return all(_f(p.get("lastPrice")) > 0 for p in legs or [])
+
+
+def legs_priced(legs, date=None):
     """True only if EVERY leg carries a usable current price.
 
     Without this, a missing lastPrice makes the close cost zero, which reads as
@@ -140,7 +179,7 @@ def legs_priced(legs):
     price of zero. That is the same class of silent-fallback bug as the guard's
     stop_trigger_price returning None.
     """
-    return all(_f(p.get("lastPrice")) > 0 for p in legs)
+    return all(leg_price(p, date)[0] > 0 for p in legs)
 
 
 def is_condor(legs):
@@ -721,6 +760,16 @@ def selftest():
     check("a leg without a price is not 'priced'",
           not legs_priced([{"lastPrice": 0}, {"lastPrice": 5}]))
     check("all legs priced passes", legs_priced([{"lastPrice": 5}, {"lastPrice": 2}]))
+    # after-hours: lastPrice 0, settlement fallback keeps the maths alive
+    _stale = [{"tradingSymbol": "RELIANCE-Dec2026-1330-PE", "netQty": -500,
+               "drvOptionType": "PUT", "drvExpiryDate": "2026-12-29",
+               "drvStrikePrice": 1330.0, "sellAvg": 22.80, "lastPrice": 0}]
+    _px, _src = leg_price(_stale[0], "20261119")
+    check("a zero lastPrice falls back to settlement", _src == "settlement")
+    check("and the fallback price is positive", _px > 0)
+    check("all_live is False when a leg is stale", all_live(_stale) is False)
+    check("all_live is True on live prices",
+          all_live([{"lastPrice": 5}]) is True)
 
     body = exit_order_body({"tradingSymbol": "X", "securityId": "85142",
                             "transaction_type": "BUY", "quantity": 300,
@@ -872,7 +921,7 @@ def main():
     for key, legs in sorted(book.items()):
         sym, exp = key.split("|")
         dte = dte_of(exp)
-        credit, cost = structure_economics(legs)
+        credit, cost = structure_economics(legs, session)
         pct = (credit - cost) / credit * 100 if credit > 0 else 0.0
         px = float(prices.get(sym, 0) or 0)
 
@@ -881,7 +930,13 @@ def main():
         rv = realised_vol(sym)
         vol_lbl, target_pct, vol_why = vol_view(iv, rv)
 
-        if not legs_priced(legs):
+        if args.execute and not all_live(legs):
+            print("   [EXEC-REFUSED] a leg has no LIVE price (lastPrice = 0). "
+                  "A limit exit priced off a settlement bar would be placed "
+                  "blind. Refusing to order.")
+            return
+
+        if not legs_priced(legs, session):
             verdict, reason = ("CHECK", "one or more legs has no current price — "
                                         "captured % cannot be computed")
         else:
@@ -929,10 +984,11 @@ def main():
               f"{_pl['date_7dte']} | adjust ends {_pl['date_adjust_end']}")
         for p in legs:
             q = _i(p.get("netQty"))
+            _px, _src = leg_price(p, session)
             print(f"      {'SHORT' if q < 0 else 'LONG '} {abs(q):>5d} x "
-                  f"{p.get('drvStrikePrice')} {p.get('drvOptionType')}  "
+                  f"{p.get('drvStrikePrice')} {opt_kind(p.get('drvOptionType'))}  "
                   f"entry {_f(p.get('sellAvg') if q < 0 else p.get('buyAvg')):,.2f}  "
-                  f"now {_f(p.get('lastPrice')):,.2f}")
+                  f"now {_px:,.2f} ({_src})")
 
         rows.append({"date": dt.date.today().isoformat(), "key": key,
                      "verdict": verdict, "reason": reason,
