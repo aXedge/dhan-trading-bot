@@ -82,9 +82,9 @@ TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from the environment (never hardcoded).
 """
 
 __SCRIPT_NAME = "dhan_fno_pnl_guard"
-__SCRIPT_VERSION = "v27"
+__SCRIPT_VERSION = "v28"
 __SCRIPT_BUILD = "2026-11-17"
-__SCRIPT_NOTES = "version banner convention; carries v26 fixes (productType, flatten cap, balance)"
+__SCRIPT_NOTES = "expiry key normalised; Dhan sometimes adds a timestamp"
 
 import argparse
 import json
@@ -385,7 +385,7 @@ def group_structures(positions, lot_size, mtm_source="price"):
             continue
         if net == 0:
             continue
-        expiry = str(p.get("drvExpiryDate", "UNKNOWN"))
+        expiry = str(p.get("drvExpiryDate", "UNKNOWN")).strip().split(" ")[0][:10]
         underlying = _underlying_of(p)
         key = f"{underlying}|{expiry}"
         g = groups.setdefault(
@@ -851,7 +851,12 @@ def verify_flat(client, structure):
     for p in positions:
         if p.get("exchangeSegment", "") not in FNO_SEGMENTS:
             continue
-        key = f"{_underlying_of(p)}|{str(p.get('drvExpiryDate', 'UNKNOWN'))}"
+        # Dhan returns drvExpiryDate as "2026-11-23" for some legs and
+        # "2026-11-23 14:30:00" for others. Keying on the raw string split ONE
+        # position into TWO structures, each with its own stop book, peak and
+        # limit - which is how a single position acquired a doubled set of stops.
+        _exp = str(p.get("drvExpiryDate", "UNKNOWN")).strip().split(" ")[0][:10]
+        key = f"{_underlying_of(p)}|{_exp}"
         try:
             if key == f"{structure['underlying']}|{structure['expiry']}" \
                     and int(p.get("netQty", 0) or 0) != 0:

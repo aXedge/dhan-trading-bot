@@ -25,9 +25,9 @@ Usage
 """
 
 __SCRIPT_NAME = "stock_fno_manager"
-__SCRIPT_VERSION = "v2"
+__SCRIPT_VERSION = "v4"
 __SCRIPT_BUILD = "2026-11-17"
-__SCRIPT_NOTES = "alerts on actionable verdicts"
+__SCRIPT_NOTES = "Dhan sends PUT/CALL, not PE/CE"
 
 import argparse
 import csv
@@ -86,13 +86,29 @@ def dte_of(expiry, today=None):
         return None
 
 
+def opt_kind(v):
+    """Normalise an option type to PE or CE.
+
+    Dhan's /positions payload returns drvOptionType as "PUT" and "CALL", not
+    "PE" and "CE". Filtering on PE/CE silently dropped EVERY stock option leg:
+    the manager reported 0 structures while a 4-leg condor was open, so it was
+    not watching that position at all.
+    """
+    u = str(v or "").strip().upper()
+    if u in ("PE", "PUT", "P"):
+        return "PE"
+    if u in ("CE", "CALL", "C"):
+        return "CE"
+    return ""
+
+
 def group_stock_options(positions):
     """{key: [legs]} for stock option legs only."""
     out = {}
     for p in positions or []:
         if not is_stock_option(p):
             continue
-        if not str(p.get("drvOptionType") or "").upper() in ("CE", "PE", ""):
+        if opt_kind(p.get("drvOptionType")) not in ("CE", "PE"):
             continue
         if _i(p.get("netQty")) == 0:
             continue
@@ -133,17 +149,134 @@ def is_condor(legs):
     return "PE" in kinds and "CE" in kinds and len(legs) >= 4
 
 
+R = 0.065
+
+
+def _phi(x):
+    import math
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def black76(F, K, T, sig, kind):
+    import math
+    if T <= 0 or sig <= 0:
+        return 0.0
+    sd = sig * math.sqrt(T)
+    d1 = (math.log(F / K) + 0.5 * sd * sd) / sd
+    d2 = d1 - sd
+    disc = math.exp(-R * T)
+    if kind == "CE":
+        return disc * (F * _phi(d1) - K * _phi(d2))
+    return disc * (K * _phi(-d2) - F * _phi(-d1))
+
+
+def implied_vol(price, F, K, T, kind):
+    """Invert Black-76 by bisection. Returns None when the price is unusable."""
+    import math
+    if not (price and price > 0 and T > 0 and F > 0 and K > 0):
+        return None
+    lo, hi = 1e-4, 3.0
+    if black76(F, K, T, hi, kind) < price:
+        return None
+    for _ in range(70):
+        mid = 0.5 * (lo + hi)
+        if black76(F, K, T, mid, kind) < price:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+def realised_vol(sym, windows=(21, 63, 252)):
+    """Annualised realised vol from daily closes. Returns {window: pct} or {}."""
+    try:
+        import math
+        import numpy as np
+        import yfinance as yf
+        h = yf.Ticker(sym + ".NS").history(period="1y", auto_adjust=False)
+        c = h["Close"].dropna()
+        r = np.log(c / c.shift(1)).dropna()
+        out = {}
+        for w in windows:
+            if len(r) >= w:
+                out[w] = float(r.tail(w).std() * math.sqrt(252)) * 100.0
+        return out
+    except Exception as e:
+        print(f"   [VOL] realised vol unavailable: {str(e)[:70]}")
+        return {}
+
+
+def vol_view(iv, rv):
+    """Compare the implied vol you sold against what the stock has been doing.
+
+    Selling premium is well paid when IV > realised and badly paid when IV <
+    realised. When it is badly paid the profit target is pulled in, because the
+    risk of being run over is higher than the implied vol says.
+    """
+    if not iv:
+        return "UNKNOWN", PROFIT_TARGET_PCT, "no implied vol (bhavcopy or price)"
+    if not rv:
+        return "UNKNOWN", PROFIT_TARGET_PCT, "no realised vol (yfinance unreachable)"
+    r63 = rv.get(63) or rv.get(21) or rv.get(252)
+    if not r63:
+        return "UNKNOWN", PROFIT_TARGET_PCT, "no realised vol"
+    gap = iv * 100.0 - r63
+    if gap <= -5:
+        return "IV CHEAP", 40.0, (f"IV {iv*100:.1f}% vs 3m realised {r63:.1f}% "
+                                  f"({gap:+.1f}) - premium is underpaid, take 40%")
+    if gap >= 5:
+        return "IV RICH", 60.0, (f"IV {iv*100:.1f}% vs 3m realised {r63:.1f}% "
+                                 f"({gap:+.1f}) - premium is well paid, hold for 60%")
+    return "IV FAIR", PROFIT_TARGET_PCT, (f"IV {iv*100:.1f}% vs 3m realised "
+                                          f"{r63:.1f}% ({gap:+.1f})")
+
+
+def exit_plan(credit, lot, shorts, dte, expiry, target_pct):
+    """Everything needed to act on one position, as concrete numbers."""
+    import datetime as dt
+    _put = shorts.get("PE") if isinstance(shorts, dict) else None
+    _call = shorts.get("CE") if isinstance(shorts, dict) else None
+    lo = (_put - credit / lot) if _put else None
+    hi = (_call + credit / lot) if _call else None
+    plan = {
+        "be_lo": lo, "be_hi": hi,
+        "short_put": _put, "short_call": _call,
+        "buyback_40": credit * 0.60, "buyback_50": credit * 0.50,
+        "buyback_target": credit * (1 - target_pct / 100.0),
+        "realise_target": credit * target_pct / 100.0,
+        "dte": dte,
+    }
+    try:
+        e = dt.date.fromisoformat(str(expiry)[:10])
+        plan["date_21dte"] = (e - dt.timedelta(days=21)).isoformat()
+        plan["date_7dte"] = (e - dt.timedelta(days=7)).isoformat()
+        plan["date_adjust_end"] = (e - dt.timedelta(days=10)).isoformat()
+    except (ValueError, TypeError):
+        plan["date_21dte"] = plan["date_7dte"] = plan["date_adjust_end"] = "?"
+    return plan
+
+
+def _lot_of(legs):
+    """Units per leg - the divisor that turns the position credit into a
+    per-unit premium. NOT the exchange lot size: one lot is one leg's qty."""
+    for p in legs or []:
+        q = abs(_i(p.get("netQty")))
+        if q:
+            return q
+    return 1
+
+
 def short_strikes(legs):
     return sorted({_f(p.get("drvStrikePrice")) for p in legs
                    if _i(p.get("netQty")) < 0 and _f(p.get("drvStrikePrice")) > 0})
 
 
 def option_types(legs):
-    return sorted({str(p.get("drvOptionType") or "").upper()
-                   for p in legs if p.get("drvOptionType")})
+    return sorted({opt_kind(p.get("drvOptionType"))
+                   for p in legs if opt_kind(p.get("drvOptionType"))})
 
 
-def decide(econ, dte, underlying_px, shorts, kinds):
+def decide(econ, dte, underlying_px, shorts, kinds, target_pct=PROFIT_TARGET_PCT):
     """Apply the rules in priority order. Returns (verdict, reason)."""
     credit, close_cost = econ
     if credit <= 0:
@@ -151,8 +284,8 @@ def decide(econ, dte, underlying_px, shorts, kinds):
     profit = credit - close_cost
     pct = profit / credit * 100.0
 
-    if pct >= PROFIT_TARGET_PCT:
-        return "TAKE-PROFIT", f"{pct:.0f}% of credit captured (target {PROFIT_TARGET_PCT:.0f}%)"
+    if pct >= target_pct:
+        return "TAKE-PROFIT", f"{pct:.0f}% of credit captured (target {target_pct:.0f}%)"
     if dte is None:
         return "CHECK", "expiry unreadable"
     if dte <= EXPIRY_WEEK_DTE:
@@ -319,6 +452,69 @@ def place_exit(orders, live):
     return results
 
 
+_FO_CACHE = {}
+
+
+def _bhavcopy(date):
+    """Load the FO bhavcopy once per process (it is ~44k rows)."""
+    if date in _FO_CACHE:
+        return _FO_CACHE[date]
+    try:
+        import io
+        import urllib.request
+        import zipfile
+        import pandas as pd
+        url = ("https://nsearchives.nseindia.com/content/fo/"
+               f"BhavCopy_NSE_FO_0_0_0_{date}_F_0000.csv.zip")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            zf = zipfile.ZipFile(io.BytesIO(r.read()))
+        with zf.open(zf.namelist()[0]) as f:
+            df = pd.read_csv(f)
+        _FO_CACHE[date] = df
+        return df
+    except Exception:
+        _FO_CACHE[date] = None
+        return None
+
+
+def position_iv(sym, expiry, legs, date, today=None):
+    """Implied vol on the short legs, plus the forward used to derive it."""
+    import datetime as dt
+    df = _bhavcopy(date)
+    if df is None:
+        return None, None
+    try:
+        exp = str(expiry)[:10]
+        f = df[(df.TckrSymb == sym) & (df.FinInstrmTp == "STF") & (df.XpryDt == exp)]
+        if not len(f):
+            return None, None
+        F = float(f.SttlmPric.iloc[0]) or float(f.ClsPric.iloc[0])
+        d = today or dt.date.today()
+        T = max((dt.date.fromisoformat(exp) - d).days, 1) / 365.0
+        ivs = []
+        for p in legs:
+            if _i(p.get("netQty")) >= 0:
+                continue
+            K = _f(p.get("drvStrikePrice"))
+            kind = opt_kind(p.get("drvOptionType"))
+            if not K or kind not in ("CE", "PE"):
+                continue
+            row = df[(df.TckrSymb == sym) & (df.FinInstrmTp == "STO")
+                     & (df.XpryDt == exp) & (df.OptnTp == kind) & (df.StrkPric == K)]
+            if not len(row):
+                continue
+            r0 = row.iloc[0]
+            px = float(r0.SttlmPric) if r0.SttlmPric > 0 else float(r0.ClsPric)
+            iv = implied_vol(px, F, K, T, kind)
+            if iv:
+                ivs.append(iv)
+        return (sum(ivs) / len(ivs) if ivs else None), F
+    except Exception as e:
+        print(f"   [VOL] implied vol unavailable: {str(e)[:70]}")
+        return None, None
+
+
 def underlying_prices(date):
     """Previous-session underlying prices from the FO bhavcopy (best available).
 
@@ -461,6 +657,48 @@ def selftest():
     check("index legs are excluded from the stock book", len(g) == 1)
 
     # verdicts
+    # exit plan and vol view
+    _plan = exit_plan(6500.0, 500, {1320.0: None} and {}, 41, "2026-12-29", 55.0)
+    check("plan dates: 21 DTE from 29-Dec is 8-Dec",
+          _plan["date_21dte"] == "2026-12-08")
+    check("plan dates: 7 DTE is 22-Dec", _plan["date_7dte"] == "2026-12-22")
+    check("plan gives a buy-back price for the target",
+          abs(_plan["buyback_target"] - 2925.0) < 1.0)
+    _lbl, _tgt, _why = vol_view(0.24, {63: 29.8, 252: 24.1})
+    check("IV below realised 3m is flagged IV CHEAP", _lbl == "IV CHEAP")
+    check("IV cheap pulls the profit target in to 40%", _tgt == 40.0)
+    _lbl2, _tgt2, _ = vol_view(0.30, {63: 20.0})
+    check("IV above realised is flagged IV RICH", _lbl2 == "IV RICH")
+    check("IV rich allows 60%", _tgt2 == 60.0)
+    check("missing vol data does not crash", vol_view(None, None)[0] == "UNKNOWN")
+    check("black76 round-trips", abs(implied_vol(black76(1350, 1330, 41/365, 0.24, "PE"),
+                                                 1350, 1330, 41/365, "PE") - 0.24) < 1e-3)
+
+    # the REAL Dhan payload shape - PUT / CALL, not PE / CE
+    check("opt_kind maps PUT to PE", opt_kind("PUT") == "PE")
+    check("opt_kind maps CALL to CE", opt_kind("CALL") == "CE")
+    check("opt_kind passes PE/CE through",
+          opt_kind("pe") == "PE" and opt_kind("CE") == "CE")
+    check("opt_kind rejects junk", opt_kind("OPTSTK") == "" and opt_kind(None) == "")
+    _real = [
+        {"tradingSymbol": "RELIANCE-Dec2026-1310-PE", "netQty": 500,
+         "drvOptionType": "PUT", "drvExpiryDate": "2026-12-29",
+         "drvStrikePrice": 1310.0, "productType": "MARGIN"},
+        {"tradingSymbol": "RELIANCE-Dec2026-1330-PE", "netQty": -500,
+         "drvOptionType": "PUT", "drvExpiryDate": "2026-12-29",
+         "drvStrikePrice": 1330.0, "productType": "MARGIN"},
+        {"tradingSymbol": "RELIANCE-Dec2026-1400-CE", "netQty": -500,
+         "drvOptionType": "CALL", "drvExpiryDate": "2026-12-29",
+         "drvStrikePrice": 1400.0, "productType": "MARGIN"},
+        {"tradingSymbol": "RELIANCE-Dec2026-1420-CE", "netQty": 500,
+         "drvOptionType": "CALL", "drvExpiryDate": "2026-12-29",
+         "drvStrikePrice": 1420.0, "productType": "MARGIN"},
+    ]
+    _g = group_stock_options(_real)
+    check("a real PUT/CALL condor groups into 1 structure", len(_g) == 1)
+    check("and all 4 legs are kept",
+          len(list(_g.values())[0]) == 4 if _g else False)
+
     v, _ = decide((10000, 4000), 40, 1350, [1320.0, 1390.0], ["PE", "CE"])
     check("60% captured triggers TAKE-PROFIT", v == "TAKE-PROFIT")
     v, _ = decide((10000, 9000), 40, 1350, [1320.0, 1390.0], ["PE", "CE"])
@@ -602,6 +840,11 @@ def main():
 
     date = args.bhavcopy_date or dt.date.today().strftime("%Y%m%d")
     prices, price_note = underlying_prices(date)
+    # the IV must come from the SAME session as the underlying prices, or it
+    # is read off a file that does not exist yet
+    import re as _re
+    _m = _re.search(r"(\d{8})", str(price_note))
+    session = _m.group(1) if _m else date
     print(f"underlying prices: {price_note}"
           + (" (previous session settlement, not live)" if prices else ""))
 
@@ -632,12 +875,19 @@ def main():
         credit, cost = structure_economics(legs)
         pct = (credit - cost) / credit * 100 if credit > 0 else 0.0
         px = float(prices.get(sym, 0) or 0)
+
+        # vol check: is the premium we sold well paid for what the stock does?
+        iv, _fwd = position_iv(sym, exp, legs, session)
+        rv = realised_vol(sym)
+        vol_lbl, target_pct, vol_why = vol_view(iv, rv)
+
         if not legs_priced(legs):
             verdict, reason = ("CHECK", "one or more legs has no current price — "
                                         "captured % cannot be computed")
         else:
             verdict, reason = decide((credit, cost), dte, px,
-                                     short_strikes(legs), option_types(legs))
+                                     short_strikes(legs), option_types(legs),
+                                     target_pct)
 
         # first sighting records the entry economics for the audit trail
         rec = state.setdefault(key, {})
@@ -651,6 +901,32 @@ def main():
               f"{sym} {exp}  {len(legs)} legs  {dte}d  "
               f"credit Rs.{credit:,.0f}  captured {pct:.0f}%")
         print(f"   -> {verdict}: {reason}")
+        print(f"   vol: {vol_lbl} — {vol_why}")
+
+        # the exit plan, as concrete numbers you can act on
+        _shorts = {}
+        for p in legs:
+            if _i(p.get("netQty")) < 0:
+                _shorts[opt_kind(p.get("drvOptionType"))] = _f(
+                    p.get("drvStrikePrice"))
+        _pl = exit_plan(credit, _lot_of(legs), _shorts, dte, exp, target_pct)
+        if _pl["be_lo"]:
+            print(f"   break-even : {_pl['be_lo']:,.2f} down / "
+                  f"{_pl['be_hi']:,.2f} up")
+        else:
+            print(f"   break-even : {_pl['be_hi'] or _pl['be_lo']:,.2f}")
+        if _pl["short_put"]:
+            _d = abs(px - _pl["short_put"]) / px * 100 if px else 0
+            print(f"   short put  : {_pl['short_put']:,.0f}  ({_d:.1f}% below spot)")
+        if _pl["short_call"]:
+            _d = abs(_pl["short_call"] - px) / px * 100 if px else 0
+            print(f"   short call : {_pl['short_call']:,.0f}  ({_d:.1f}% above spot)")
+        print(f"   exit target: realise Rs.{_pl['realise_target']:,.0f} "
+              f"(buy the condor back for Rs.{_pl['buyback_target']:,.0f})")
+        print(f"   buy-back px: 50% capture = Rs.{_pl['buyback_50']:,.0f} | "
+              f"40% = Rs.{_pl['buyback_40']:,.0f}")
+        print(f"   dates      : 21 DTE {_pl['date_21dte']} | 7 DTE "
+              f"{_pl['date_7dte']} | adjust ends {_pl['date_adjust_end']}")
         for p in legs:
             q = _i(p.get("netQty"))
             print(f"      {'SHORT' if q < 0 else 'LONG '} {abs(q):>5d} x "
